@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -52,8 +51,39 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StartDirGeodesicComponent.cs" />
+    <Compile Include="BestFitGeodesicComponent.cs" />
     <Compile Include="StartDirGeodesicInfo.cs" />
     <Compile Include="ParallelTransportFrame.cs" />
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\Bobyqa.cs">
+      <Link>Optimizers\Bobyqa.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\Cobyla.cs">
+      <Link>Optimizers\Cobyla.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\IOptimizer.cs">
+      <Link>Optimizers\IOptimizer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\IQuadraticModelOptimizer.cs">
+      <Link>Optimizers\IQuadraticModelOptimizer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\ITrustRegionOptimizer.cs">
+      <Link>Optimizers\ITrustRegionOptimizer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\OptimizationStatus.cs">
+      <Link>Optimizers\OptimizationStatus.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\OptimizationSummary.cs">
+      <Link>Optimizers\OptimizationSummary.cs</Link>
+    </Compile>
+    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\lincoa.cs">
+      <Link>Optimizers\lincoa.cs</Link>
+    </Compile>
+    <Compile Include="MeshGeodesicMethods.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\lincoa.txt">
+      <Link>Optimizers\lincoa.txt</Link>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
