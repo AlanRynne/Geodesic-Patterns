@@ -11,6 +11,10 @@ namespace StartDirGeodesic
 {
     public class BestFitGeodesicComponent : GH_Component
     {
+        
+
+
+
         /// <summary>
         /// Each implementation of GH_Component must provide a public 
         /// constructor without any arguments.
@@ -34,6 +38,8 @@ namespace StartDirGeodesic
             pManager.AddCurveParameter("Perp. Geodesics", "Pg", "Set of reference measurement geodesics on a given mesh.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Parameter at Pg", "t", "Parameter of point of reference on Pg", GH_ParamAccess.list);
             pManager.AddIntegerParameter("Maximum Iterations", "Iter", "Integer representing the maximum number of steps for the geodesic curve algorithm", GH_ParamAccess.item, 50);
+            pManager.AddBooleanParameter("Both Directions", "BothDir", "Generate the geodesic on both directions",GH_ParamAccess.item,false);
+            pManager.AddIntegerParameter("Start Point Index", "StIndex", "Index of starting point to use from the t' list", GH_ParamAccess.item);
 
             pManager[0].Optional = true;
             pManager[1].Optional = true;
@@ -57,6 +63,14 @@ namespace StartDirGeodesic
         /// to store data in output parameters.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
+
+            Mesh mesh = null;
+            List<Curve> perpGeodesics = new List<Curve>();
+            List<double> perpParameters = new List<double>();
+            int maxIter = 0;
+            bool bothDir = false;
+            int startIndex = 0;
+
             mesh = null;
             perpGeodesics = new List<Curve>();
             perpParameters = new List<double>();
@@ -65,16 +79,19 @@ namespace StartDirGeodesic
             if (!DA.GetDataList(1, perpGeodesics)) return;
             if (!DA.GetDataList(2, perpParameters)) return;
             if (!DA.GetData(3, ref maxIter)) return;
+            if (!DA.GetData(4, ref bothDir)) return;
+            if (!DA.GetData(5, ref startIndex)) return;
 
             //Only using first variable for now, the extra variable is just to make it work.
             double[] startData = { 0.010, 0 };
-            double[] xl = new double[] { -0.050, -1 };
-            double[] xu = new double[] { 0.050, 1 };
+            double[] xl = new double[] { -0.080, -1 };
+            double[] xu = new double[] { 0.080, 1 };
 
-            var optimizer = new Bobyqa(2, GeodesicFit, xl, xu);
+            BestFitGeodesic bestFitG = new BestFitGeodesic(mesh, perpGeodesics, perpParameters, maxIter, bothDir, startIndex);
+            var optimizer = new Bobyqa(2, bestFitG.Compute, xl, xu);
             var result = optimizer.FindMinimum(startData);
 
-            DA.SetDataList(0, new List<Curve> { selectedGeodesic });
+            DA.SetDataList(0, new List<Curve> { bestFitG.selectedGeodesic });
             DA.SetDataList(1, result.X);
         }
 
@@ -100,60 +117,6 @@ namespace StartDirGeodesic
         public override Guid ComponentGuid
         {
             get { return new Guid("f2a4c1b2-d239-4613-adc3-d750c361bc9e"); }
-        }
-
-
-        Mesh mesh;
-        List<Curve> perpGeodesics;
-        List<double> perpParameters;
-        int maxIter = 50;
-        Curve selectedGeodesic = null;
-
-        public double fun(int n, double[] x)
-        {
-            return Math.Pow(x[0], 2) - x[1];
-        }
-
-        public double GeodesicFit(int n, double[] x){
-            
-            double alpha = x[0];
-            Curve curve = perpGeodesics[perpGeodesics.Count / 2];
-            Point3d pt = curve.PointAt(perpParameters[perpGeodesics.Count / 2]);
-            Vector3d vector = curve.TangentAt(perpParameters[perpGeodesics.Count / 2]);
-
-            MeshPoint mPt = mesh.ClosestMeshPoint(pt, 0.0);
-            Vector3d normal = mesh.NormalAt(mPt);
-            Vector3d cP = Vector3d.CrossProduct(vector, normal);
-            cP.Rotate(alpha, normal);
-
-            Curve newG = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, cP, maxIter).ToNurbsCurve();
-            Curve newG2 = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, -cP, maxIter).ToNurbsCurve();
-            newG = Curve.JoinCurves(new List<Curve> { newG, newG2 })[0];
-
-            selectedGeodesic = newG;
-
-            double error = 0;
-
-            for (int i = 0; i < perpGeodesics.Count-1; i++)
-            {
-                Curve g = perpGeodesics[i];
-                CurveIntersections cvInt = Intersection.CurveCurve(newG, g,0.00001,0.00001);
-                if (cvInt.Count > 0)
-                {
-                    double param = cvInt[0].ParameterB;
-                    Interval domain = new Interval(param, perpParameters[i]);
-                    double distance = g.GetLength(domain);
-
-                    error += Math.Pow(distance, 2);
-                }
-                else
-                {
-                    // Penalize if no intersection is found on this perp geodesic
-                    error += 1000000000;
-                }
-            }
-
-            return error;
         }
     }
 }
