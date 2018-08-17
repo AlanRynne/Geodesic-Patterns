@@ -7,7 +7,9 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 using Rhino.Geometry.Intersect;
 
-namespace StartDirGeodesic
+using Cureos.Numerics.Optimizers;
+
+namespace MeshGeodesics
 {
     public static class MeshGeodesicMethods
     {
@@ -139,26 +141,25 @@ namespace StartDirGeodesic
 
             //Rotate the vector around the normal using the specified 'alpha' angle in radians
             CP.Rotate(alpha, normalVectors[0]);
-            
-            //Parallel transport the vector along the rest of the sample parameters.
-            List<ParallelTransportFrame> ptFrames = ParallelTransportFrames(CP, samplePoints);
 
+            //Parallel transport the vector along the rest of the sample parameters.
+            List<Vector3d> transportedVectors = VectorParallelTransport(CP, samplePoints,mesh);
+                
             //Generate geodesics using the sample points and the transported vectors.
             List<Curve> geodesicPattern = new List<Curve>();
-            foreach (ParallelTransportFrame ptF in ptFrames)
+            for (int i = 0; i < samplePoints.Count;i++)
             {
-                Curve geod = getGeodesicCurveOnMesh(mesh, ptF.position, ptF.N, iter).ToNurbsCurve();
-                Curve geodInverse = getGeodesicCurveOnMesh(mesh, ptF.position, -ptF.N, iter).ToNurbsCurve();
+                Curve geod = getGeodesicCurveOnMesh(mesh, samplePoints[i], transportedVectors[i], iter).ToNurbsCurve();
+                Curve geodInverse = getGeodesicCurveOnMesh(mesh, samplePoints[i], -transportedVectors[i], iter).ToNurbsCurve();
                 Curve fullGeodesic = Curve.JoinCurves(new List<Curve>{geod, geodInverse})[0];
                 geodesicPattern.Add(fullGeodesic);
             }
 
             //Return geodesic patterns 
-
             return geodesicPattern;
         }
 
-        struct ParallelTransportFrame
+        public struct ParallelTransportFrame
         {
             public Vector3d T;
             public Vector3d N;
@@ -166,7 +167,7 @@ namespace StartDirGeodesic
             public Point3d position;
         }
 
-        static List<ParallelTransportFrame> ParallelTransportFrames(Vector3d V, List<Point3d> pts)
+        public static List<ParallelTransportFrame> ParallelTransportFrames(Vector3d V, List<Point3d> pts)
         {
             Vector3d V_prev = V;
             List<ParallelTransportFrame> frameList = new List<ParallelTransportFrame>();
@@ -204,6 +205,20 @@ namespace StartDirGeodesic
             return frameList;
         }
 
+        public static List<Vector3d> VectorParallelTransport(Vector3d vector, List<Point3d> points, Mesh mesh)
+        {
+            List<Vector3d> transportedVectors = new List<Vector3d>();
+            transportedVectors.Add(vector);
+
+            for (int i = 1; i < points.Count;i++)
+            {
+                Vector3d CP = Vector3d.CrossProduct(transportedVectors[i - 1], mesh.NormalAt(mesh.ClosestMeshPoint(points[i - 1],0.0)));
+                Vector3d newV = Vector3d.CrossProduct(mesh.NormalAt(mesh.ClosestMeshPoint(points[i - 1],0.0)), CP);
+                transportedVectors.Add(newV);
+            }
+
+            return transportedVectors;
+        }
     }
 
     public class BestFitGeodesic {
@@ -228,7 +243,7 @@ namespace StartDirGeodesic
             startIndex = stIndex;
         }
         // Find the best fitting geodesic curve for a set of 
-        public double Compute(int n, double[] x)
+        public double ComputeError(int n, double[] x)
         {
             double alpha = x[0];
             Curve curve = perpGeodesics[startIndex];
@@ -246,10 +261,7 @@ namespace StartDirGeodesic
                 Curve newG2 = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, -cP, maxIter).ToNurbsCurve();
                 newG = Curve.JoinCurves(new List<Curve> { newG, newG2 })[0];
             }
-            else
-            {
-                // keep newG intact
-            }
+
             // Assign resulting geodesic to global property for output.
             selectedGeodesic = newG;
 

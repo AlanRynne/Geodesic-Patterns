@@ -89,5 +89,8 @@
   <ItemGroup>
     <None Include="Resources\StartDirx2.png" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\GeodxPT.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

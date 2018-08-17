@@ -4,7 +4,7 @@ using Grasshopper;
 using Grasshopper.Kernel;
 using Cureos.Numerics.Optimizers;
 
-namespace StartDirGeodesic
+namespace MeshGeodesics
 {
     public class StartDirGeodesicInfo : GH_AssemblyInfo
     {

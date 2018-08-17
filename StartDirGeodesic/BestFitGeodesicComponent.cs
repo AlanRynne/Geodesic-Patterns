@@ -8,7 +8,7 @@ using Rhino.Geometry.Intersect;
 
 using Cureos.Numerics.Optimizers;
             
-namespace StartDirGeodesic
+namespace MeshGeodesics
 {
     public class BestFitGeodesicComponent : GH_Component
     {
@@ -87,11 +87,11 @@ namespace StartDirGeodesic
             // Generate Initial values and variable Bounds for the optimization problem.
             // Only using first variable for now, the extra variable is just to make it work.
             double[] startData = { 0.010, 0 };
-            double[] xl = new double[] { -0.080, -1 };
-            double[] xu = new double[] { 0.080, 1 };
+            double[] xl = new double[] { -0.10, -1 };
+            double[] xu = new double[] { 0.10, 1 };
 
             BestFitGeodesic bestFitG = new BestFitGeodesic(mesh, perpGeodesics, perpParameters, maxIter, bothDir, startIndex);
-            var optimizer = new Bobyqa(2, bestFitG.Compute, xl, xu);
+            var optimizer = new Bobyqa(2, bestFitG.ComputeError, xl, xu);
             var result = optimizer.FindMinimum(startData);
 
             // Output data

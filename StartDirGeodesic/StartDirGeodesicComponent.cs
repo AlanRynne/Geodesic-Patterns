@@ -7,7 +7,7 @@ using Grasshopper.Kernel;
 using Rhino.Geometry;
 
 
-namespace StartDirGeodesic
+namespace MeshGeodesics
 {
     public class StartDirGeodesicComponent : GH_Component
     {
