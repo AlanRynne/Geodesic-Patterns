@@ -114,6 +114,96 @@ namespace StartDirGeodesic
             }
             return new Polyline(geodesicPoints);
         }
+
+        public static List<Curve> ComputeGeodesicPatternByParralelTransport(Mesh mesh, Curve startGeodesic, int count, double alpha, int iter)
+        {
+            //Sample curves using provided 'count'
+            double[] parameters = startGeodesic.DivideByCount(count,true);
+
+            //At each sample point obtain the mesh normal and the curve tangent
+            List<Point3d> samplePoints = new List<Point3d>();
+            List<Vector3d> tangentVectors = new List<Vector3d>();
+            List<Vector3d> normalVectors = new List<Vector3d>();
+            foreach (double t in parameters)
+            {
+                Point3d pt = startGeodesic.PointAt(t);
+                Vector3d tang = startGeodesic.TangentAt(t);
+                Vector3d normal = mesh.NormalAt(mesh.ClosestMeshPoint(pt,0.0));
+                samplePoints.Add(pt);
+                tangentVectors.Add(tang);
+                normalVectors.Add(normal);
+            }
+
+            //At the starting point of the curve: obtain the cross product of tangent and normal.
+            Vector3d CP = Vector3d.CrossProduct(tangentVectors[0], normalVectors[0]);
+
+            //Rotate the vector around the normal using the specified 'alpha' angle in radians
+            CP.Rotate(alpha, normalVectors[0]);
+            
+            //Parallel transport the vector along the rest of the sample parameters.
+            List<ParallelTransportFrame> ptFrames = ParallelTransportFrames(CP, samplePoints);
+
+            //Generate geodesics using the sample points and the transported vectors.
+            List<Curve> geodesicPattern = new List<Curve>();
+            foreach (ParallelTransportFrame ptF in ptFrames)
+            {
+                Curve geod = getGeodesicCurveOnMesh(mesh, ptF.position, ptF.N, iter).ToNurbsCurve();
+                Curve geodInverse = getGeodesicCurveOnMesh(mesh, ptF.position, -ptF.N, iter).ToNurbsCurve();
+                Curve fullGeodesic = Curve.JoinCurves(new List<Curve>{geod, geodInverse})[0];
+                geodesicPattern.Add(fullGeodesic);
+            }
+
+            //Return geodesic patterns 
+
+            return geodesicPattern;
+        }
+
+        struct ParallelTransportFrame
+        {
+            public Vector3d T;
+            public Vector3d N;
+            public Vector3d B;
+            public Point3d position;
+        }
+
+        static List<ParallelTransportFrame> ParallelTransportFrames(Vector3d V, List<Point3d> pts)
+        {
+            Vector3d V_prev = V;
+            List<ParallelTransportFrame> frameList = new List<ParallelTransportFrame>();
+            for (int i = 0; i < pts.Count - 2; i++)
+            {
+                Vector3d t0 = new Vector3d(pts[i + 1] - pts[i]);
+                Vector3d t1 = new Vector3d(pts[i + 2] - pts[i + 1]);
+                t0.Unitize();
+                t1.Unitize();
+
+                Vector3d B = Vector3d.CrossProduct(t0, t1);
+                if (B.Length <= 0.01)
+                {
+                    V = V_prev;
+                }
+                else
+                {
+                    B.Unitize();
+                    double theta = Math.Acos(Vector3d.Multiply(t0, t1));
+                    V.Rotate(theta, B);
+                }
+                Vector3d Binorm = Vector3d.CrossProduct(t0, V);
+                Binorm.Unitize();
+
+                ParallelTransportFrame frame = new ParallelTransportFrame();
+                frame.T = t0;
+                frame.N = V;
+                frame.B = Binorm;
+                frame.position = pts[i];
+                frameList.Add(frame);
+                // push back frame?
+                V_prev = V;
+            }
+
+            return frameList;
+        }
+
     }
 
     public class BestFitGeodesic {
@@ -187,4 +277,6 @@ namespace StartDirGeodesic
             return error;
         }
     }
+
+
 }

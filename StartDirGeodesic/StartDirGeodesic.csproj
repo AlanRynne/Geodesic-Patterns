@@ -63,6 +63,7 @@
     <Compile Include="StartDirGeodesicInfo.cs" />
     <Compile Include="ParallelTransportFrame.cs" />
     <Compile Include="MeshGeodesicMethods.cs" />
+    <Compile Include="GeodesicPatternByPT.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
