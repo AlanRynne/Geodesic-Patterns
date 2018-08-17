@@ -5,6 +5,7 @@ using Grasshopper;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 using Rhino.Geometry.Intersect;
+
 using Cureos.Numerics.Optimizers;
             
 namespace StartDirGeodesic
@@ -40,11 +41,6 @@ namespace StartDirGeodesic
             pManager.AddIntegerParameter("Maximum Iterations", "Iter", "Integer representing the maximum number of steps for the geodesic curve algorithm", GH_ParamAccess.item, 50);
             pManager.AddBooleanParameter("Both Directions", "BothDir", "Generate the geodesic on both directions",GH_ParamAccess.item,false);
             pManager.AddIntegerParameter("Start Point Index", "StIndex", "Index of starting point to use from the t' list", GH_ParamAccess.item);
-
-            pManager[0].Optional = true;
-            pManager[1].Optional = true;
-            pManager[2].Optional = true;
-
         }
 
         /// <summary>
@@ -63,18 +59,18 @@ namespace StartDirGeodesic
         /// to store data in output parameters.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-
+            // Properties
             Mesh mesh = null;
             List<Curve> perpGeodesics = new List<Curve>();
             List<double> perpParameters = new List<double>();
             int maxIter = 0;
             bool bothDir = false;
             int startIndex = 0;
-
             mesh = null;
             perpGeodesics = new List<Curve>();
             perpParameters = new List<double>();
 
+            // Set the input data
             if (!DA.GetData(0, ref mesh)) return;
             if (!DA.GetDataList(1, perpGeodesics)) return;
             if (!DA.GetDataList(2, perpParameters)) return;
@@ -82,7 +78,14 @@ namespace StartDirGeodesic
             if (!DA.GetData(4, ref bothDir)) return;
             if (!DA.GetData(5, ref startIndex)) return;
 
-            //Only using first variable for now, the extra variable is just to make it work.
+            // Data validation
+            if (maxIter == 0) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "MaxIter cannot be 0");
+            if (!mesh.IsValid) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Mesh is invalid");
+            if (perpGeodesics.Count < 2) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "There must be at least 2 perpendicular geodesics");
+            if (perpParameters.Count != perpGeodesics.Count) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Curves and Params list must have the same number of items");
+
+            // Generate Initial values and variable Bounds for the optimization problem.
+            // Only using first variable for now, the extra variable is just to make it work.
             double[] startData = { 0.010, 0 };
             double[] xl = new double[] { -0.080, -1 };
             double[] xu = new double[] { 0.080, 1 };
@@ -91,6 +94,7 @@ namespace StartDirGeodesic
             var optimizer = new Bobyqa(2, bestFitG.Compute, xl, xu);
             var result = optimizer.FindMinimum(startData);
 
+            // Output data
             DA.SetDataList(0, new List<Curve> { bestFitG.selectedGeodesic });
             DA.SetDataList(1, result.X);
         }
@@ -105,7 +109,7 @@ namespace StartDirGeodesic
             {
                 // You can add image files to your project resources and access them like this:
                 //return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.BestFitGeo;
             }
         }
 

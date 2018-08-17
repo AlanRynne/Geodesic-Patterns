@@ -2,6 +2,7 @@
 using System.Drawing;
 using Grasshopper;
 using Grasshopper.Kernel;
+using Cureos.Numerics.Optimizers;
 
 namespace StartDirGeodesic
 {

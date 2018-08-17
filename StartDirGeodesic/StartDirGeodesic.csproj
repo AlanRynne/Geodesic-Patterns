@@ -47,43 +47,46 @@
       <HintPath>..\..\..\..\..\Applications\RhinoWIP.app\Contents\Resources\Eto.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="CSNumerics">
+      <HintPath>..\..\..\GitHub\csnumerics\csnumerics\bin\Debug\CSNumerics.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="StartDirGeodesicComponent.cs" />
     <Compile Include="BestFitGeodesicComponent.cs" />
     <Compile Include="StartDirGeodesicInfo.cs" />
     <Compile Include="ParallelTransportFrame.cs" />
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\Bobyqa.cs">
-      <Link>Optimizers\Bobyqa.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\Cobyla.cs">
-      <Link>Optimizers\Cobyla.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\IOptimizer.cs">
-      <Link>Optimizers\IOptimizer.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\IQuadraticModelOptimizer.cs">
-      <Link>Optimizers\IQuadraticModelOptimizer.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\ITrustRegionOptimizer.cs">
-      <Link>Optimizers\ITrustRegionOptimizer.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\OptimizationStatus.cs">
-      <Link>Optimizers\OptimizationStatus.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\OptimizationSummary.cs">
-      <Link>Optimizers\OptimizationSummary.cs</Link>
-    </Compile>
-    <Compile Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\lincoa.cs">
-      <Link>Optimizers\lincoa.cs</Link>
-    </Compile>
     <Compile Include="MeshGeodesicMethods.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\GitHub\csnumerics\csnumerics\Optimizers\lincoa.txt">
-      <Link>Optimizers\lincoa.txt</Link>
-    </None>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BestFitGeo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\BestFitGeox2.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\ParTrans.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\ParTransx2.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\StartDir.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\StartDirx2.png" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
