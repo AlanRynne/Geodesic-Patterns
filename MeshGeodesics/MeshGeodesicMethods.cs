@@ -13,6 +13,8 @@ namespace MeshGeodesics
 {
     public static class MeshGeodesicMethods
     {
+
+
         public static Polyline getGeodesicCurveOnMesh(Mesh mesh, Point3d startPoint, Vector3d startDirection, int iter)
         {
             double tol = 0.001;
@@ -120,7 +122,7 @@ namespace MeshGeodesics
         public static List<Curve> ComputeGeodesicPatternByParralelTransport(Mesh mesh, Curve startGeodesic, int count, double alpha, int iter)
         {
             //Sample curves using provided 'count'
-            double[] parameters = startGeodesic.DivideByCount(count,true);
+            double[] parameters = startGeodesic.DivideByCount(count, true);
 
             //At each sample point obtain the mesh normal and the curve tangent
             List<Point3d> samplePoints = new List<Point3d>();
@@ -130,7 +132,7 @@ namespace MeshGeodesics
             {
                 Point3d pt = startGeodesic.PointAt(t);
                 Vector3d tang = startGeodesic.TangentAt(t);
-                Vector3d normal = mesh.NormalAt(mesh.ClosestMeshPoint(pt,0.0));
+                Vector3d normal = mesh.NormalAt(mesh.ClosestMeshPoint(pt, 0.0));
                 samplePoints.Add(pt);
                 tangentVectors.Add(tang);
                 normalVectors.Add(normal);
@@ -143,15 +145,15 @@ namespace MeshGeodesics
             CP.Rotate(alpha, normalVectors[0]);
 
             //Parallel transport the vector along the rest of the sample parameters.
-            List<Vector3d> transportedVectors = VectorParallelTransport(CP, samplePoints,mesh);
-                
+            List<Vector3d> transportedVectors = VectorParallelTransport(CP, samplePoints, mesh);
+
             //Generate geodesics using the sample points and the transported vectors.
             List<Curve> geodesicPattern = new List<Curve>();
-            for (int i = 0; i < samplePoints.Count;i++)
+            for (int i = 0; i < samplePoints.Count; i++)
             {
                 Curve geod = getGeodesicCurveOnMesh(mesh, samplePoints[i], transportedVectors[i], iter).ToNurbsCurve();
                 Curve geodInverse = getGeodesicCurveOnMesh(mesh, samplePoints[i], -transportedVectors[i], iter).ToNurbsCurve();
-                Curve fullGeodesic = Curve.JoinCurves(new List<Curve>{geod, geodInverse})[0];
+                Curve fullGeodesic = Curve.JoinCurves(new List<Curve> { geod, geodInverse })[0];
                 geodesicPattern.Add(fullGeodesic);
             }
 
@@ -210,15 +212,254 @@ namespace MeshGeodesics
             List<Vector3d> transportedVectors = new List<Vector3d>();
             transportedVectors.Add(vector);
 
-            for (int i = 1; i < points.Count;i++)
+            for (int i = 1; i < points.Count; i++)
             {
-                Vector3d CP = Vector3d.CrossProduct(transportedVectors[i - 1], mesh.NormalAt(mesh.ClosestMeshPoint(points[i - 1],0.0)));
-                Vector3d newV = Vector3d.CrossProduct(mesh.NormalAt(mesh.ClosestMeshPoint(points[i - 1],0.0)), CP);
+                Vector3d CP = Vector3d.CrossProduct(transportedVectors[i - 1], mesh.NormalAt(mesh.ClosestMeshPoint(points[i - 1], 0.0)));
+                Vector3d newV = Vector3d.CrossProduct(mesh.NormalAt(mesh.ClosestMeshPoint(points[i - 1], 0.0)), CP);
                 transportedVectors.Add(newV);
             }
 
             return transportedVectors;
+
+
+
         }
+
+    }
+
+    public class BestFitPieceWiseGeodesic: BestFitGeodesic
+    {
+        // Properties
+        public int[] bestFitInterval;
+        readonly double threshold;
+        Vector3d refDir;
+
+        // Constructor
+        public BestFitPieceWiseGeodesic(Mesh aMesh, List<Curve> pGeods, List<double> pParams, int mIter, bool bDir, int stIndex, double thrshld, Vector3d _refDir)
+            : base(aMesh, pGeods, pParams, mIter, bDir, stIndex)
+        {
+            threshold = thrshld;
+            bestFitInterval = new int[]{};
+            refDir = _refDir;
+
+        }
+
+
+        // Find the best fitting geodesic curve for a set of 
+        public new double ComputeError(int n, double[] x)
+        {
+            double alpha = x[0];
+            bestFitInterval = new int[] { };
+            Curve curve = perpGeodesics[startIndex];
+            Point3d pt = curve.PointAt(perpParameters[startIndex]);
+            Vector3d vector = curve.TangentAt(perpParameters[startIndex]);
+
+            MeshPoint mPt = mesh.ClosestMeshPoint(pt, 0.0);
+            Vector3d normal = mesh.NormalAt(mPt);
+            Vector3d cP = Vector3d.CrossProduct(vector, normal);
+            cP.Rotate(alpha, normal);
+
+            if (refDir == Vector3d.Unset) refDir = cP;
+            double angle = Vector3d.VectorAngle(cP, refDir);
+            if (angle >= 0.1*Math.PI) cP = -cP;
+
+            Vector3d.VectorAngle(cP, refDir);
+            Curve newG = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, cP, maxIter).ToNurbsCurve();
+            if (bothDir)
+            {
+                Curve newG2 = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, -cP, maxIter).ToNurbsCurve();
+                newG = Curve.JoinCurves(new List<Curve> { newG, newG2 })[0];
+            }
+
+            // Assign resulting geodesic to global property for output.
+            selectedGeodesic = newG;
+
+            // Calculate error
+            double error = 0;
+            List<double> distances = new List<double>();
+            List<double> signedDistances = new List<double>();
+
+            for (int i = 0; i < perpGeodesics.Count - 1; i++)
+            {
+                Curve g = perpGeodesics[i];
+                CurveIntersections cvInt = Intersection.CurveCurve(newG, g, 0.00001, 0.00001);
+                double signedDistance = g.GetLength(new Interval(0, perpParameters[i]));
+                signedDistances.Add(signedDistance);
+                if (cvInt.Count > 0)
+                {
+                    // Compute distance if intersection is found
+                    double param = cvInt[0].ParameterB;
+                    double distance = g.GetLength(new Interval(0, param));
+                    distances.Add(distance);
+                    // Add squared distance to error
+                    error += Math.Pow(signedDistance - distance, 2);
+                }
+                else
+                {
+                    // Penalize if no intersection is found on this perp geodesic
+                    distances.Add(1000);
+                    error += 1000;
+                }
+            }
+
+            //Calculate longest interval within threshold.
+            for (int k = (distances.Count-1); k >= 2 ;k--)
+            {
+                for (int i = 0; i < (distances.Count - k); i++)
+                {
+                    //Check if interval i->k is within bounds
+                    bool flag = true;
+                    for (int j = i; j < i+k; j++)
+                    {
+                        double Lbound = signedDistances[j] * (1 - threshold);
+                        double Ubound = signedDistances[j] * (1 + threshold);
+                        if (Lbound > distances[j] || distances[j] > Ubound)
+                        {
+                            flag = false;
+                            break;
+                        }
+                    }
+                    if (flag && bestFitInterval.Length == 0)
+                    {
+                        bestFitInterval = new int[]{i, i + k};
+                    }
+                }
+
+            }
+            if (bestFitInterval.Length == 0)
+            {
+                error += 1000000;
+                return error;
+            }
+            error = error / (bestFitInterval[1] - bestFitInterval[0]);
+
+            //if (invertDir) selectedGeodesic.Reverse();
+
+            return error;
+        }
+
+        public Curve CutCurveBetweenPerpIndexes(Curve g, List<Curve> perpGs, int index1, int index2)
+        {
+            Curve tempG = g.DuplicateCurve();
+
+            tempG.Domain = new Interval(0, 1);
+
+            CurveIntersections curveInt = Intersection.CurveCurve(tempG, perpGs[index1], 0.0001, 0.0001);
+            CurveIntersections curveInt2 = Intersection.CurveCurve(tempG, perpGs[index2], 0.0001, 0.0001);
+
+            double t1 = tempG.Domain.T0;
+            double t2 = tempG.Domain.T1;
+
+            if (curveInt.Count != 0) t1 = curveInt[0].ParameterA;
+            if (curveInt2.Count != 0) t2 = curveInt2[0].ParameterA;
+
+            double tMid;
+            if (t1 > t2)
+            {
+                double temp = t1;
+                t1 = t2;
+                t2 = temp;
+            }
+            tMid = (t2 + t1) / 2;
+
+            Point3d midPoint = tempG.PointAt(tMid);
+
+            if (curveInt.Count != 0 && t1 > tempG.Domain.T0)
+            {
+
+                Curve[] splitCurves = tempG.Split(t1);
+                foreach (Curve crv in splitCurves)
+                {
+                    double closestT;
+                    crv.ClosestPoint(midPoint, out closestT);
+
+                    double distance = midPoint.DistanceTo(crv.PointAt(closestT));
+                    if (distance < 0.001)
+                    {
+                        tempG = crv;
+                    }
+                }
+
+            }
+
+            tempG.Domain = new Interval(0, 1);
+            t2 = tempG.Domain.T1;
+            curveInt2 = Intersection.CurveCurve(tempG, perpGs[index2], 0.0001, 0.0001);
+            if (curveInt2.Count != 0) t2 = curveInt2[0].ParameterA;
+
+            if (curveInt2.Count != 0 && t2 < tempG.Domain.T1 && t2 > 0)
+            {
+                Curve[] splitCurves = tempG.Split(t2);
+                foreach (Curve crv in splitCurves)
+                {
+                    double closestT;
+                    crv.ClosestPoint(midPoint, out closestT);
+
+                    double distance = midPoint.DistanceTo(crv.PointAt(closestT));
+                    if (distance < 0.001)
+                    {
+                        tempG = crv;
+                    }
+                }
+
+            }
+
+
+            return tempG;
+        }
+    
+        public List<Curve> GenerateSubCurves(double[] _startData, double[] _xl, double[] _xu)
+        {
+            
+            // Generate Initial values and variable Bounds for the optimization problem.
+            // Only using first variable for now, the extra variable is just to make it work.
+            double[] startData = _startData;
+            double[] xl = _xl;
+            double[] xu = _xu;
+
+            List<Curve> pieceWiseList = new List<Curve>();
+            pieceWiseList.Add(selectedGeodesic);
+
+            if (bestFitInterval.Length != 0)
+            {
+                pieceWiseList[0] = CutCurveBetweenPerpIndexes(pieceWiseList[0], perpGeodesics, bestFitInterval[0], bestFitInterval[1]);
+
+                if (bestFitInterval[1] < (perpGeodesics.Count - 1))
+                {
+                    List<Curve> tempGeodesics = perpGeodesics.GetRange(bestFitInterval[1], (perpGeodesics.Count - bestFitInterval[1]));
+                    List<double> tempParameters = perpParameters.GetRange(bestFitInterval[1], (perpGeodesics.Count - bestFitInterval[1]));
+                    Vector3d tangent = pieceWiseList[0].TangentAtEnd;
+                    double t;
+                    tempGeodesics[0].ClosestPoint(pieceWiseList[0].PointAtEnd, out t);
+                    tempParameters[0] = t;
+                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter / 2, false, 0, threshold, tangent);
+                    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
+                    var tempResult = tempOptimizer.FindMinimum(startData);
+
+                    pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu));
+
+                }
+
+                if (bestFitInterval[0] > 0)
+                {
+
+                    List<Curve> tempGeodesics = perpGeodesics.GetRange(0, bestFitInterval[0] + 1);
+                    List<double> tempParameters = perpParameters.GetRange(0, bestFitInterval[0] + 1);
+
+                    double t;
+                    Vector3d tangent = pieceWiseList[0].TangentAtStart;
+
+                    tempGeodesics[tempGeodesics.Count - 1].ClosestPoint(pieceWiseList[0].PointAtStart, out t);
+                    tempParameters[tempGeodesics.Count - 1] = t;
+                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter / 2, false, tempGeodesics.Count - 1, threshold, -tangent);
+                    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
+                    var tempResult = tempOptimizer.FindMinimum(startData);
+                    pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu));
+                }
+            }
+            return pieceWiseList;
+        }
+
     }
 
     public class BestFitGeodesic {
@@ -226,12 +467,12 @@ namespace MeshGeodesics
         public Curve selectedGeodesic;
 
         // Private properties
-        Mesh mesh;
-        List<Curve> perpGeodesics;
-        List<double> perpParameters;
-        int maxIter;
-        bool bothDir;
-        int startIndex;
+        protected Mesh mesh;
+        protected List<Curve> perpGeodesics;
+        protected List<double> perpParameters;
+        protected int maxIter;
+        protected bool bothDir;
+        protected int startIndex;
 
         public BestFitGeodesic(Mesh aMesh, List<Curve> pGeods, List<double> pParams, int mIter, bool bDir, int stIndex)
         {
@@ -242,6 +483,7 @@ namespace MeshGeodesics
             bothDir = bDir;
             startIndex = stIndex;
         }
+
         // Find the best fitting geodesic curve for a set of 
         public double ComputeError(int n, double[] x)
         {
@@ -265,6 +507,7 @@ namespace MeshGeodesics
             // Assign resulting geodesic to global property for output.
             selectedGeodesic = newG;
 
+            // Calculate error
             double error = 0;
 
             for (int i = 0; i < perpGeodesics.Count - 1; i++)

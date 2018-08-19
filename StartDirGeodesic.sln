@@ -1,7 +1,7 @@
 
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StartDirGeodesic", "StartDirGeodesic\StartDirGeodesic.csproj", "{196161B6-0061-4CB7-BE78-BEFDEF6A8662}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeshGeodesics", "MeshGeodesics\MeshGeodesics.csproj", "{8C693766-8392-4A7B-B306-0675747D2A2C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,9 +9,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{196161B6-0061-4CB7-BE78-BEFDEF6A8662}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{196161B6-0061-4CB7-BE78-BEFDEF6A8662}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{196161B6-0061-4CB7-BE78-BEFDEF6A8662}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{196161B6-0061-4CB7-BE78-BEFDEF6A8662}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8C693766-8392-4A7B-B306-0675747D2A2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8C693766-8392-4A7B-B306-0675747D2A2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8C693766-8392-4A7B-B306-0675747D2A2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8C693766-8392-4A7B-B306-0675747D2A2C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

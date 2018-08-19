@@ -7,32 +7,18 @@ using Rhino.Geometry;
 using Rhino.Geometry.Intersect;
 
 using Cureos.Numerics.Optimizers;
-            
+
 namespace MeshGeodesics
 {
-    public class BestFitGeodesicComponent : GH_Component
+    public class BestFitPieceWiseGeodesicComponent : GH_Component
     {
-        
-
-
-
-        /// <summary>
-        /// Each implementation of GH_Component must provide a public 
-        /// constructor without any arguments.
-        /// Category represents the Tab in which the component will appear, 
-        /// Subcategory the panel. If you use non-existing tab or panel names, 
-        /// new tabs/panels will automatically be created.
-        /// </summary>
-        public BestFitGeodesicComponent()
-          : base("BestFitGeodesic", "BestGeo",
-            "Find the best fitting geodesic on a mesh given a set reference perpendicular geodesics, a set of parameters on such geodesics to measure from.",
+        public BestFitPieceWiseGeodesicComponent()
+          : base("BF Piece-wise Geodesic", "BF PW-Geod",
+            "Best fit piecewise geodesic",
             "Alan", "Geodesic Patterns")
         {
         }
 
-        /// <summary>
-        /// Registers all the input parameters for this component.
-        /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddMeshParameter("Mesh", "M", "Mesh to draw geodesics on", GH_ParamAccess.item);
@@ -41,22 +27,15 @@ namespace MeshGeodesics
             pManager.AddIntegerParameter("Maximum Iterations", "Iter", "Integer representing the maximum number of steps for the geodesic curve algorithm", GH_ParamAccess.item, 50);
             pManager.AddBooleanParameter("Both Directions", "BothDir", "Generate the geodesic on both directions",GH_ParamAccess.item,false);
             pManager.AddIntegerParameter("Start Point Index", "StIndex", "Index of starting point to use from the t' list", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Threshold", "e", "Margin of error alowed for the selection of the interval.", GH_ParamAccess.item);
         }
 
-        /// <summary>
-        /// Registers all the output parameters for this component.
-        /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddCurveParameter("Best Fit Geodesic", "BF Geod", "Best fitting geodesic", GH_ParamAccess.list);
             pManager.AddNumberParameter("Best fit result", "R", "Best fit result", GH_ParamAccess.list);
         }
 
-        /// <summary>
-        /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object can be used to retrieve data from input parameters and 
-        /// to store data in output parameters.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // Properties
@@ -69,6 +48,7 @@ namespace MeshGeodesics
             mesh = null;
             perpGeodesics = new List<Curve>();
             perpParameters = new List<double>();
+            double threshold = 0.0;
 
             // Set the input data
             if (!DA.GetData(0, ref mesh)) return;
@@ -77,6 +57,7 @@ namespace MeshGeodesics
             if (!DA.GetData(3, ref maxIter)) return;
             if (!DA.GetData(4, ref bothDir)) return;
             if (!DA.GetData(5, ref startIndex)) return;
+            if (!DA.GetData(6, ref threshold)) return;
 
             // Data validation
             if (maxIter == 0) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "MaxIter cannot be 0");
@@ -87,40 +68,41 @@ namespace MeshGeodesics
             // Generate Initial values and variable Bounds for the optimization problem.
             // Only using first variable for now, the extra variable is just to make it work.
             double[] startData = { 0.010, 0 };
-            double[] xl = new double[] { -0.10, -1 };
-            double[] xu = new double[] { 0.10, 1 };
+            double[] xl = new double[] { -0.15, -1 };
+            double[] xu = new double[] { 0.15, 1 };
 
-            BestFitGeodesic bestFitG = new BestFitGeodesic(mesh, perpGeodesics, perpParameters, maxIter, bothDir, startIndex);
+
+            BestFitPieceWiseGeodesic bestFitG = new BestFitPieceWiseGeodesic(mesh, perpGeodesics, perpParameters, maxIter, bothDir, startIndex, threshold, Vector3d.Unset);
+
             var optimizer = new Bobyqa(2, bestFitG.ComputeError, xl, xu);
             var result = optimizer.FindMinimum(startData);
 
-            // Output data
-            DA.SetDataList(0, new List<Curve> { bestFitG.selectedGeodesic });
+            if (bestFitG.bestFitInterval.Length == 0) {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "No best interval found?!");
+                return;
+            }
+
+            // Sub curves methods go here
+            List<Curve> pieceWiseList = new List<Curve>();
+            pieceWiseList = bestFitG.GenerateSubCurves(startData,xl,xu);
+
+
+            DA.SetDataList(0, pieceWiseList);
             DA.SetDataList(1, result.X);
         }
 
-        /// <summary>
-        /// Provides an Icon for every component that will be visible in the User Interface.
-        /// Icons need to be 24x24 pixels.
-        /// </summary>
         protected override System.Drawing.Bitmap Icon
         {
             get
             {
-                // You can add image files to your project resources and access them like this:
-                //return Resources.IconForThisComponent;
-                return Properties.Resources.BestFitGeo;
+                return Properties.Resources.PieceWiseG;
             }
         }
 
-        /// <summary>
-        /// Each component must have a unique Guid to identify it. 
-        /// It is vital this Guid doesn't change otherwise old ghx files 
-        /// that use the old ID will partially fail during loading.
-        /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("f2a4c1b2-d239-4613-adc3-d750c361bc9e"); }
+            get { return new Guid("8d62dd90-22c3-4cf3-9d37-3d4feb22d631"); }
         }
+
     }
 }

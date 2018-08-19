@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 // Information about this assembly is defined by the following attributes. 
 // Change them to the values specific to your project.
 
-[assembly: AssemblyTitle("StartDirGeodesic")]
+[assembly: AssemblyTitle("MeshGeodesics")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
@@ -20,4 +20,4 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyVersion("1.0.*")]
 
 // Rhino requires a Guid assigned to the assembly.
-[assembly: Guid("170c756e-3c98-4bd3-bc51-c0ec40a9a9a7")]
+[assembly: Guid("e7fa835b-9e9f-45ee-a053-2f9ed659c10b")]

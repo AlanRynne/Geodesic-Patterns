@@ -2,17 +2,16 @@
 using System.Drawing;
 using Grasshopper;
 using Grasshopper.Kernel;
-using Cureos.Numerics.Optimizers;
 
 namespace MeshGeodesics
 {
-    public class StartDirGeodesicInfo : GH_AssemblyInfo
+    public class MeshGeodesicsInfo : GH_AssemblyInfo
     {
         public override string Name
         {
             get
             {
-                return "StartDirGeodesic Info";
+                return "MeshGeodesics Info";
             }
         }
         public override Bitmap Icon
@@ -35,7 +34,7 @@ namespace MeshGeodesics
         {
             get
             {
-                return new Guid("3dfc624b-2f1a-4689-92a7-70949a17f23d");
+                return new Guid("e418ea81-024e-4176-924d-82d56fa6c3fc");
             }
         }
 
