@@ -1,5 +1,5 @@
 # Geodesic Patterns
----
+
 This repo contains my implementation of several methods for generating geodesic curve patterns on an architectural context; and where developed for my _Master Thesis_ on _Parametric Design in Architecture_. A link to my master thesis will also be published once presented.
 
 This method's were originally introduced by Helmut Pottman in [_Geodesic Patterns_](http://www.geometrie.tugraz.at/wallner/geopattern.pdf).
@@ -9,13 +9,11 @@ All methods  where implemented as components for the Rhino + Grasshopper3D softw
 > Please read the dependencies section below.
 
 ## To-do's
----
 
 - Level-set method
 - Geodesic vector fields
 
 ## Dependencies
----
 
 - Rhino6+Grasshopper3D
 
@@ -26,7 +24,6 @@ All methods  where implemented as components for the Rhino + Grasshopper3D softw
 > You should clone and build your own CSNumerics.dll because the latest version on GitHub is **NOT** the latest one (which is the one I'm using)
 
 ## Other info
----
 
 Pending...
 
