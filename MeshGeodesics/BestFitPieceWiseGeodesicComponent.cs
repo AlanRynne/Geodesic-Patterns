@@ -10,8 +10,15 @@ using Cureos.Numerics.Optimizers;
 
 namespace MeshGeodesics
 {
+    /// <summary>
+    /// Best fit piece wise geodesic component.
+    /// </summary>
     public class BestFitPieceWiseGeodesicComponent : GH_Component
     {
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:MeshGeodesics.BestFitPieceWiseGeodesicComponent"/> class.
+        /// </summary>
         public BestFitPieceWiseGeodesicComponent()
           : base("BF Piece-wise Geodesic", "BF PW-Geod",
             "Best fit piecewise geodesic",
@@ -19,6 +26,10 @@ namespace MeshGeodesics
         {
         }
 
+        /// <summary>
+        /// Registers the input parameters.
+        /// </summary>
+        /// <param name="pManager">P manager.</param>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddMeshParameter("Mesh", "M", "Mesh to draw geodesics on", GH_ParamAccess.item);
@@ -30,12 +41,20 @@ namespace MeshGeodesics
             pManager.AddNumberParameter("Threshold", "e", "Margin of error alowed for the selection of the interval.", GH_ParamAccess.item);
         }
 
+        /// <summary>
+        /// Registers the output parameters.
+        /// </summary>
+        /// <param name="pManager">P manager.</param>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddCurveParameter("Best Fit Geodesic", "BF Geod", "Best fitting geodesic", GH_ParamAccess.list);
             pManager.AddNumberParameter("Best fit result", "R", "Best fit result", GH_ParamAccess.list);
         }
 
+        /// <summary>
+        /// Solves the instance.
+        /// </summary>
+        /// <param name="DA">Da.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // Properties
@@ -91,6 +110,10 @@ namespace MeshGeodesics
             DA.SetDataList(1, result.X);
         }
 
+        /// <summary>
+        /// Gets the icon.
+        /// </summary>
+        /// <value>The icon.</value>
         protected override System.Drawing.Bitmap Icon
         {
             get
@@ -99,6 +122,10 @@ namespace MeshGeodesics
             }
         }
 
+        /// <summary>
+        /// Gets the component GUID.
+        /// </summary>
+        /// <value>The component GUID.</value>
         public override Guid ComponentGuid
         {
             get { return new Guid("8d62dd90-22c3-4cf3-9d37-3d4feb22d631"); }

@@ -10,8 +10,14 @@ using Cureos.Numerics.Optimizers;
             
 namespace MeshGeodesics
 {
+    /// <summary>
+    /// Best fit geodesic component.
+    /// </summary>
     public class BestFitGeodesicComponent : GH_Component
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:MeshGeodesics.BestFitGeodesicComponent"/> class.
+        /// </summary>
         public BestFitGeodesicComponent()
           : base("BestFitGeodesic", "BestGeo",
             "Find the best fitting geodesic on a mesh given a set reference perpendicular geodesics, a set of parameters on such geodesics to measure from.",
@@ -19,6 +25,10 @@ namespace MeshGeodesics
         {
         }
 
+        /// <summary>
+        /// Registers the input parameters.
+        /// </summary>
+        /// <param name="pManager">P manager.</param>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddMeshParameter("Mesh", "M", "Mesh to draw geodesics on", GH_ParamAccess.item);
@@ -29,12 +39,20 @@ namespace MeshGeodesics
             pManager.AddIntegerParameter("Start Point Index", "StIndex", "Index of starting point to use from the t' list", GH_ParamAccess.item);
         }
 
+        /// <summary>
+        /// Registers the output parameters.
+        /// </summary>
+        /// <param name="pManager">P manager.</param>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddCurveParameter("Best Fit Geodesic", "BF Geod", "Best fitting geodesic", GH_ParamAccess.list);
             pManager.AddNumberParameter("Best fit result", "R", "Best fit result", GH_ParamAccess.list);
         }
 
+        /// <summary>
+        /// Solves the instance.
+        /// </summary>
+        /// <param name="DA">Da.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // Properties
@@ -77,6 +95,10 @@ namespace MeshGeodesics
             DA.SetDataList(1, result.X);
         }
 
+        /// <summary>
+        /// Gets the icon.
+        /// </summary>
+        /// <value>The icon.</value>
         protected override System.Drawing.Bitmap Icon
         {
             get
@@ -85,6 +107,10 @@ namespace MeshGeodesics
             }
         }
 
+        /// <summary>
+        /// Gets the component GUID.
+        /// </summary>
+        /// <value>The component GUID.</value>
         public override Guid ComponentGuid
         {
             get { return new Guid("f2a4c1b2-d239-4613-adc3-d750c361bc9e"); }

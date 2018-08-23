@@ -11,10 +11,21 @@ using Cureos.Numerics.Optimizers;
 
 namespace MeshGeodesics
 {
+
+    /// <summary>
+    /// Mesh geodesic methods.
+    /// </summary>
     public static class MeshGeodesicMethods
     {
 
-
+        /// <summary>
+        /// Gets the geodesic curve on mesh.
+        /// </summary>
+        /// <returns>The geodesic curve on mesh.</returns>
+        /// <param name="mesh">Mesh.</param>
+        /// <param name="startPoint">Start point.</param>
+        /// <param name="startDirection">Start direction.</param>
+        /// <param name="iter">Iter.</param>
         public static Polyline getGeodesicCurveOnMesh(Mesh mesh, Point3d startPoint, Vector3d startDirection, int iter)
         {
             double tol = 0.001;
@@ -119,6 +130,15 @@ namespace MeshGeodesics
             return new Polyline(geodesicPoints);
         }
 
+        /// <summary>
+        /// Computes the geodesic pattern by parralel transport.
+        /// </summary>
+        /// <returns>The geodesic pattern by parralel transport.</returns>
+        /// <param name="mesh">Mesh.</param>
+        /// <param name="startGeodesic">Start geodesic.</param>
+        /// <param name="count">Count.</param>
+        /// <param name="alpha">Alpha.</param>
+        /// <param name="iter">Iter.</param>
         public static List<Curve> ComputeGeodesicPatternByParralelTransport(Mesh mesh, Curve startGeodesic, int count, double alpha, int iter)
         {
             //Sample curves using provided 'count'
@@ -161,6 +181,9 @@ namespace MeshGeodesics
             return geodesicPattern;
         }
 
+        /// <summary>
+        /// Parallel transport frame.
+        /// </summary>
         public struct ParallelTransportFrame
         {
             public Vector3d T;
@@ -169,6 +192,12 @@ namespace MeshGeodesics
             public Point3d position;
         }
 
+        /// <summary>
+        /// Move vector along frames using parallel transport
+        /// </summary>
+        /// <returns>The parallel transport frames.</returns>
+        /// <param name="V">V.</param>
+        /// <param name="pts">Pts.</param>
         public static List<ParallelTransportFrame> ParallelTransportFrames(Vector3d V, List<Point3d> pts)
         {
             Vector3d V_prev = V;
@@ -207,6 +236,13 @@ namespace MeshGeodesics
             return frameList;
         }
 
+        /// <summary>
+        /// Vectors the parallel transport.
+        /// </summary>
+        /// <returns>The parallel transport.</returns>
+        /// <param name="vector">Vector.</param>
+        /// <param name="points">Points.</param>
+        /// <param name="mesh">Mesh.</param>
         public static List<Vector3d> VectorParallelTransport(Vector3d vector, List<Point3d> points, Mesh mesh)
         {
             List<Vector3d> transportedVectors = new List<Vector3d>();
@@ -227,6 +263,9 @@ namespace MeshGeodesics
 
     }
 
+    /// <summary>
+    /// Best fit piece-wise geodesic.
+    /// </summary>
     public class BestFitPieceWiseGeodesic: BestFitGeodesic
     {
         // Properties
@@ -244,8 +283,12 @@ namespace MeshGeodesics
 
         }
 
-
-        // Find the best fitting geodesic curve for a set of 
+        /// <summary>
+        /// Computes the error.
+        /// </summary>
+        /// <returns>The error.</returns>
+        /// <param name="n">Number of variables</param>
+        /// <param name="x">Variable Initial Values</param>
         public new double ComputeError(int n, double[] x)
         {
             double alpha = x[0];
@@ -338,6 +381,14 @@ namespace MeshGeodesics
             return error;
         }
 
+        /// <summary>
+        /// Cuts the curve between perp indexes.
+        /// </summary>
+        /// <returns>The curve between perp indexes.</returns>
+        /// <param name="g">The green component.</param>
+        /// <param name="perpGs">Perp gs.</param>
+        /// <param name="index1">Index1.</param>
+        /// <param name="index2">Index2.</param>
         public Curve CutCurveBetweenPerpIndexes(Curve g, List<Curve> perpGs, int index1, int index2)
         {
             Curve tempG = g.DuplicateCurve();
@@ -408,6 +459,13 @@ namespace MeshGeodesics
             return tempG;
         }
     
+        /// <summary>
+        /// Generates the sub curves.
+        /// </summary>
+        /// <returns>The sub curves.</returns>
+        /// <param name="_startData">Start data.</param>
+        /// <param name="_xl">Xl.</param>
+        /// <param name="_xu">Xu.</param>
         public List<Curve> GenerateSubCurves(double[] _startData, double[] _xl, double[] _xu)
         {
             
@@ -433,8 +491,8 @@ namespace MeshGeodesics
                     tempGeodesics[0].ClosestPoint(pieceWiseList[0].PointAtEnd, out t);
                     tempParameters[0] = t;
                     BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter / 2, false, 0, threshold, tangent);
-                    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
-                    var tempResult = tempOptimizer.FindMinimum(startData);
+                    //var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
+                    //var tempResult = tempOptimizer.FindMinimum(startData);
 
                     pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu));
 
@@ -452,8 +510,8 @@ namespace MeshGeodesics
                     tempGeodesics[tempGeodesics.Count - 1].ClosestPoint(pieceWiseList[0].PointAtStart, out t);
                     tempParameters[tempGeodesics.Count - 1] = t;
                     BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter / 2, false, tempGeodesics.Count - 1, threshold, -tangent);
-                    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
-                    var tempResult = tempOptimizer.FindMinimum(startData);
+                    //var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
+                    //var tempResult = tempOptimizer.FindMinimum(startData);
                     pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu));
                 }
             }
@@ -462,11 +520,18 @@ namespace MeshGeodesics
 
     }
 
+    /// <summary>
+    /// Best fit geodesic.
+    /// </summary>
     public class BestFitGeodesic {
         // Public properties
+        /// <summary>
+        /// The selected geodesic.
+        /// </summary>
         public Curve selectedGeodesic;
 
         // Private properties
+
         protected Mesh mesh;
         protected List<Curve> perpGeodesics;
         protected List<double> perpParameters;
@@ -474,6 +539,15 @@ namespace MeshGeodesics
         protected bool bothDir;
         protected int startIndex;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:MeshGeodesics.BestFitGeodesic"/> class.
+        /// </summary>
+        /// <param name="aMesh">A mesh.</param>
+        /// <param name="pGeods">P geods.</param>
+        /// <param name="pParams">P parameters.</param>
+        /// <param name="mIter">M iter.</param>
+        /// <param name="bDir">If set to <c>true</c> b dir.</param>
+        /// <param name="stIndex">St index.</param>
         public BestFitGeodesic(Mesh aMesh, List<Curve> pGeods, List<double> pParams, int mIter, bool bDir, int stIndex)
         {
             mesh = aMesh;
@@ -484,7 +558,12 @@ namespace MeshGeodesics
             startIndex = stIndex;
         }
 
-        // Find the best fitting geodesic curve for a set of 
+        /// <summary>
+        /// Computes the error.
+        /// </summary>
+        /// <returns>The error.</returns>
+        /// <param name="n">N.</param>
+        /// <param name="x">The x coordinate.</param>
         public double ComputeError(int n, double[] x)
         {
             double alpha = x[0];

@@ -9,8 +9,14 @@ using Rhino.Geometry;
 
 namespace MeshGeodesics
 {
+    /// <summary>
+    /// Start dir geodesic component.
+    /// </summary>
     public class StartDirGeodesicComponent : GH_Component
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:MeshGeodesics.StartDirGeodesicComponent"/> class.
+        /// </summary>
         public StartDirGeodesicComponent()
           : base("Start-Dir Geodesic", "Geod-SD",
             "StartDirGeodesic description",
@@ -18,6 +24,10 @@ namespace MeshGeodesics
         {
         }
 
+        /// <summary>
+        /// Registers the input parameters.
+        /// </summary>
+        /// <param name="pManager">P manager.</param>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddIntegerParameter("Max Iterations", "Max. Iter", "Set maximum iterations", GH_ParamAccess.item,5);
@@ -27,6 +37,10 @@ namespace MeshGeodesics
             pManager.AddBooleanParameter("Both directions", "Both", "Create geodesics both positive and negative directions of V", GH_ParamAccess.item, false);
         }
 
+        /// <summary>
+        /// Registers the output parameters.
+        /// </summary>
+        /// <param name="pManager">P manager.</param>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddCurveParameter("Geodesic curves", "G", "List of calculated geodesic curves", GH_ParamAccess.list);
@@ -34,6 +48,10 @@ namespace MeshGeodesics
 
         }
 
+        /// <summary>
+        /// Solves the instance.
+        /// </summary>
+        /// <param name="DA">Da.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // Input variables
@@ -76,6 +94,10 @@ namespace MeshGeodesics
             DA.SetDataList(0, polyList);
         }
 
+        /// <summary>
+        /// Gets the icon.
+        /// </summary>
+        /// <value>The icon.</value>
         protected override System.Drawing.Bitmap Icon
         {
             get
@@ -84,6 +106,10 @@ namespace MeshGeodesics
             }
         }
 
+        /// <summary>
+        /// Gets the component GUID.
+        /// </summary>
+        /// <value>The component GUID.</value>
         public override Guid ComponentGuid
         {
             get { return new Guid("6b866c6f-a1ee-41b9-afed-f366a1bbe8f8"); }

@@ -5,8 +5,15 @@ using Grasshopper.Kernel;
 
 namespace MeshGeodesics
 {
+    /// <summary>
+    /// Mesh geodesics info.
+    /// </summary>
     public class MeshGeodesicsInfo : GH_AssemblyInfo
     {
+        /// <summary>
+        /// Gets the name.
+        /// </summary>
+        /// <value>The name.</value>
         public override string Name
         {
             get
@@ -14,6 +21,11 @@ namespace MeshGeodesics
                 return "MeshGeodesics Info";
             }
         }
+
+        /// <summary>
+        /// Gets the icon.
+        /// </summary>
+        /// <value>The icon.</value>
         public override Bitmap Icon
         {
             get
@@ -22,6 +34,11 @@ namespace MeshGeodesics
                 return null;
             }
         }
+
+        /// <summary>
+        /// Gets the description.
+        /// </summary>
+        /// <value>The description.</value>
         public override string Description
         {
             get
@@ -30,6 +47,11 @@ namespace MeshGeodesics
                 return "";
             }
         }
+
+        /// <summary>
+        /// Gets the identifier.
+        /// </summary>
+        /// <value>The identifier.</value>
         public override Guid Id
         {
             get
@@ -38,6 +60,10 @@ namespace MeshGeodesics
             }
         }
 
+        /// <summary>
+        /// Gets the name of the author.
+        /// </summary>
+        /// <value>The name of the author.</value>
         public override string AuthorName
         {
             get
@@ -46,6 +72,10 @@ namespace MeshGeodesics
                 return "";
             }
         }
+        /// <summary>
+        /// Gets the author contact.
+        /// </summary>
+        /// <value>The author contact.</value>
         public override string AuthorContact
         {
             get
