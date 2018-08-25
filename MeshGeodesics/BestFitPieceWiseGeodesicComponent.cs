@@ -87,8 +87,8 @@ namespace MeshGeodesics
             // Generate Initial values and variable Bounds for the optimization problem.
             // Only using first variable for now, the extra variable is just to make it work.
             double[] startData = { 0.010, 0 };
-            double[] xl = new double[] { -0.15, -1 };
-            double[] xu = new double[] { 0.15, 1 };
+            double[] xl = new double[] { -0.13, -1 };
+            double[] xu = new double[] { 0.13, 1 };
 
 
             BestFitPieceWiseGeodesic bestFitG = new BestFitPieceWiseGeodesic(mesh, perpGeodesics, perpParameters, maxIter, bothDir, startIndex, threshold, Vector3d.Unset);
@@ -103,7 +103,7 @@ namespace MeshGeodesics
 
             // Sub curves methods go here
             List<Curve> pieceWiseList = new List<Curve>();
-            pieceWiseList = bestFitG.GenerateSubCurves(startData,xl,xu);
+            pieceWiseList = bestFitG.GenerateSubCurves(startData,xl,xu,0);
 
 
             DA.SetDataList(0, pieceWiseList);

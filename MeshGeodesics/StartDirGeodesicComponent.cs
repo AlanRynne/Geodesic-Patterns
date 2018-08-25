@@ -107,7 +107,7 @@ namespace MeshGeodesics
         }
 
         /// <summary>
-        /// Gets the component GUID.
+        /// 
         /// </summary>
         /// <value>The component GUID.</value>
         public override Guid ComponentGuid

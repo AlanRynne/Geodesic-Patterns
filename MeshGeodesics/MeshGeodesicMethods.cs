@@ -6,6 +6,7 @@ using Grasshopper;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 using Rhino.Geometry.Intersect;
+using Rhino.Geometry.Collections;
 
 using Cureos.Numerics.Optimizers;
 
@@ -39,7 +40,6 @@ namespace MeshGeodesics
             // Project direction to be tangent to the mesh.
             Vector3d norm = mesh.FaceNormals[thisFaceIndex];
             Vector3d crossP = Vector3d.CrossProduct(startDirection, norm);
-            // FIXME: Currently not tangent :S
 
             Vector3d correctedDir = Vector3d.CrossProduct(norm, crossP);
             correctedDir.Unitize();
@@ -263,10 +263,105 @@ namespace MeshGeodesics
 
     }
 
+
+    /// <summary>
+    /// Best fit geodesic.
+    /// </summary>
+    public class BestFitGeodesic
+    {
+        // Public properties
+        /// <summary>
+        /// The selected geodesic.
+        /// </summary>
+        public Curve selectedGeodesic;
+
+        // Private properties
+
+        protected Mesh mesh;
+        protected List<Curve> perpGeodesics;
+        protected List<double> perpParameters;
+        protected int maxIter;
+        protected bool bothDir;
+        protected int startIndex;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:MeshGeodesics.BestFitGeodesic"/> class.
+        /// </summary>
+        /// <param name="aMesh">A mesh.</param>
+        /// <param name="pGeods">P geods.</param>
+        /// <param name="pParams">P parameters.</param>
+        /// <param name="mIter">M iter.</param>
+        /// <param name="bDir">If set to <c>true</c> b dir.</param>
+        /// <param name="stIndex">St index.</param>
+        public BestFitGeodesic(Mesh aMesh, List<Curve> pGeods, List<double> pParams, int mIter, bool bDir, int stIndex)
+        {
+            mesh = aMesh;
+            perpGeodesics = pGeods;
+            perpParameters = pParams;
+            maxIter = mIter;
+            bothDir = bDir;
+            startIndex = stIndex;
+        }
+
+        /// <summary>
+        /// Computes the error.
+        /// </summary>
+        /// <returns>The error.</returns>
+        /// <param name="n">N.</param>
+        /// <param name="x">The x coordinate.</param>
+        public double ComputeError(int n, double[] x)
+        {
+            double alpha = x[0];
+            Curve curve = perpGeodesics[startIndex];
+            Point3d pt = curve.PointAt(perpParameters[startIndex]);
+            Vector3d vector = curve.TangentAt(perpParameters[startIndex]);
+
+            MeshPoint mPt = mesh.ClosestMeshPoint(pt, 0.0);
+            Vector3d normal = mesh.NormalAt(mPt);
+            Vector3d cP = Vector3d.CrossProduct(vector, normal);
+            cP.Rotate(alpha, normal);
+
+            Curve newG = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, cP, maxIter).ToNurbsCurve();
+            if (bothDir)
+            {
+                Curve newG2 = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, -cP, maxIter).ToNurbsCurve();
+                newG = Curve.JoinCurves(new List<Curve> { newG, newG2 })[0];
+            }
+
+            // Assign resulting geodesic to global property for output.
+            selectedGeodesic = newG;
+
+            // Calculate error
+            double error = 0;
+
+            for (int i = 0; i < perpGeodesics.Count - 1; i++)
+            {
+                Curve g = perpGeodesics[i];
+                CurveIntersections cvInt = Intersection.CurveCurve(newG, g, 0.00001, 0.00001);
+                if (cvInt.Count > 0)
+                {
+                    // Compute distance if intersection is found
+                    double param = cvInt[0].ParameterB;
+                    Interval domain = new Interval(param, perpParameters[i]);
+                    double distance = g.GetLength(domain);
+                    // Add squared distance to error
+                    error += Math.Pow(distance, 2);
+                }
+                else
+                {
+                    // Penalize if no intersection is found on this perp geodesic
+                    error += 10;
+                }
+            }
+            return error;
+        }
+    }
+
+
     /// <summary>
     /// Best fit piece-wise geodesic.
     /// </summary>
-    public class BestFitPieceWiseGeodesic: BestFitGeodesic
+    public class BestFitPieceWiseGeodesic : BestFitGeodesic
     {
         // Properties
         public int[] bestFitInterval;
@@ -278,7 +373,7 @@ namespace MeshGeodesics
             : base(aMesh, pGeods, pParams, mIter, bDir, stIndex)
         {
             threshold = thrshld;
-            bestFitInterval = new int[]{};
+            bestFitInterval = new int[] { };
             refDir = _refDir;
 
         }
@@ -304,7 +399,7 @@ namespace MeshGeodesics
 
             if (refDir == Vector3d.Unset) refDir = cP;
             double angle = Vector3d.VectorAngle(cP, refDir);
-            if (angle >= 0.1*Math.PI) cP = -cP;
+            if (angle >= 0.1 * Math.PI) cP = -cP;
 
             Vector3d.VectorAngle(cP, refDir);
             Curve newG = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, cP, maxIter).ToNurbsCurve();
@@ -346,13 +441,13 @@ namespace MeshGeodesics
             }
 
             //Calculate longest interval within threshold.
-            for (int k = (distances.Count-1); k >= 2 ;k--)
+            for (int k = (distances.Count - 1); k >= 2; k--)
             {
                 for (int i = 0; i < (distances.Count - k); i++)
                 {
                     //Check if interval i->k is within bounds
                     bool flag = true;
-                    for (int j = i; j < i+k; j++)
+                    for (int j = i; j < i + k; j++)
                     {
                         double Lbound = signedDistances[j] * (1 - threshold);
                         double Ubound = signedDistances[j] * (1 + threshold);
@@ -364,7 +459,7 @@ namespace MeshGeodesics
                     }
                     if (flag && bestFitInterval.Length == 0)
                     {
-                        bestFitInterval = new int[]{i, i + k};
+                        bestFitInterval = new int[] { i, i + k };
                     }
                 }
 
@@ -458,7 +553,7 @@ namespace MeshGeodesics
 
             return tempG;
         }
-    
+
         /// <summary>
         /// Generates the sub curves.
         /// </summary>
@@ -466,9 +561,9 @@ namespace MeshGeodesics
         /// <param name="_startData">Start data.</param>
         /// <param name="_xl">Xl.</param>
         /// <param name="_xu">Xu.</param>
-        public List<Curve> GenerateSubCurves(double[] _startData, double[] _xl, double[] _xu)
+        public List<Curve> GenerateSubCurves(double[] _startData, double[] _xl, double[] _xu, int type)
         {
-            
+
             // Generate Initial values and variable Bounds for the optimization problem.
             // Only using first variable for now, the extra variable is just to make it work.
             double[] startData = _startData;
@@ -480,7 +575,20 @@ namespace MeshGeodesics
 
             if (bestFitInterval.Length != 0)
             {
-                pieceWiseList[0] = CutCurveBetweenPerpIndexes(pieceWiseList[0], perpGeodesics, bestFitInterval[0], bestFitInterval[1]);
+                switch (type)
+                {
+                    // End point
+                    case 1:
+                        pieceWiseList[0] = CutCurveBetweenPerpIndexes(pieceWiseList[0], perpGeodesics, 0, bestFitInterval[1]);
+                        break;
+                    // Start point
+                    case -1:
+                        pieceWiseList[0] = CutCurveBetweenPerpIndexes(pieceWiseList[0], perpGeodesics, bestFitInterval[0], perpGeodesics.Count - 1);
+                        break;
+                    default:
+                        pieceWiseList[0] = CutCurveBetweenPerpIndexes(pieceWiseList[0], perpGeodesics, bestFitInterval[0], bestFitInterval[1]);
+                        break;
+                }
 
                 if (bestFitInterval[1] < (perpGeodesics.Count - 1))
                 {
@@ -490,11 +598,11 @@ namespace MeshGeodesics
                     double t;
                     tempGeodesics[0].ClosestPoint(pieceWiseList[0].PointAtEnd, out t);
                     tempParameters[0] = t;
-                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter / 2, false, 0, threshold, tangent);
-                    //var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
-                    //var tempResult = tempOptimizer.FindMinimum(startData);
+                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, Convert.ToInt32(maxIter * 0.8), false, 0, threshold, tangent);
+                    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
+                    var tempResult = tempOptimizer.FindMinimum(startData);
 
-                    pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu));
+                    pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData, xl, xu, 1));
 
                 }
 
@@ -506,13 +614,15 @@ namespace MeshGeodesics
 
                     double t;
                     Vector3d tangent = pieceWiseList[0].TangentAtStart;
+                    tangent.Rotate(Math.PI, mesh.NormalAt(mesh.ClosestMeshPoint(pieceWiseList[0].PointAtStart, 0.0)));
 
                     tempGeodesics[tempGeodesics.Count - 1].ClosestPoint(pieceWiseList[0].PointAtStart, out t);
                     tempParameters[tempGeodesics.Count - 1] = t;
-                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter / 2, false, tempGeodesics.Count - 1, threshold, -tangent);
-                    //var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
-                    //var tempResult = tempOptimizer.FindMinimum(startData);
-                    pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu));
+                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, Convert.ToInt32(maxIter * 0.8), false, tempGeodesics.Count - 1, threshold, tangent);
+                    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
+                    var tempResult = tempOptimizer.FindMinimum(startData);
+                    //pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu,-1));
+                    pieceWiseList.Add(tempBestFit.selectedGeodesic);
                 }
             }
             return pieceWiseList;
@@ -521,96 +631,247 @@ namespace MeshGeodesics
     }
 
     /// <summary>
-    /// Best fit geodesic.
+    /// Geodesic 1-pattern from level sets on triangular meshes.
     /// </summary>
-    public class BestFitGeodesic {
+    public class GeodesicsFromLevelSets
+    {
         // Public properties
-        /// <summary>
-        /// The selected geodesic.
-        /// </summary>
-        public Curve selectedGeodesic;
+        public Mesh Mesh { get => _mesh; set => _mesh = value; }
+        public List<double> VertexValues { get => _vertexValues; set => _vertexValues = value; }
+        public double DesiredWidth { get => _desiredWidth; set => _desiredWidth = value; }
+        public double Lambda { get => _lambda; set => _lambda = value; }
+        public double Nu { get => _nu; set => _nu = value; }
+        public List<double> VertexVoronoiArea { get => _vertexVoronoiArea; set => _vertexVoronoiArea = value; }
+        public List<Vector3d> Gradient { get => _gradient; set => _gradient = value; }
 
-        // Private properties
+        // Private fields
+        Mesh _mesh;
+        List<double> _vertexVoronoiArea;
+        List<double> _vertexValues;
+        List<Vector3d> _gradient;
+        double _desiredWidth;
+        double _lambda;
+        double _nu;
 
-        protected Mesh mesh;
-        protected List<Curve> perpGeodesics;
-        protected List<double> perpParameters;
-        protected int maxIter;
-        protected bool bothDir;
-        protected int startIndex;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="T:MeshGeodesics.BestFitGeodesic"/> class.
-        /// </summary>
-        /// <param name="aMesh">A mesh.</param>
-        /// <param name="pGeods">P geods.</param>
-        /// <param name="pParams">P parameters.</param>
-        /// <param name="mIter">M iter.</param>
-        /// <param name="bDir">If set to <c>true</c> b dir.</param>
-        /// <param name="stIndex">St index.</param>
-        public BestFitGeodesic(Mesh aMesh, List<Curve> pGeods, List<double> pParams, int mIter, bool bDir, int stIndex)
+        // Constructor
+        public GeodesicsFromLevelSets(Mesh mesh, List<double> vertexValues, double desiredWidth, double lambda, double nu)
         {
-            mesh = aMesh;
-            perpGeodesics = pGeods;
-            perpParameters = pParams;
-            maxIter = mIter;
-            bothDir = bDir;
-            startIndex = stIndex;
+            _mesh = mesh;
+            _vertexValues = vertexValues;
+            _desiredWidth = desiredWidth;
+            _nu = nu;
+            _lambda = lambda;
+            VertexVoronoiArea = ComputeVertexVoronoiArea();
+        }
+
+
+        /// <summary>
+        /// Computes the vertex voronoi area of every vertex in the mesh.
+        /// </summary>
+        /// <returns>The vertex voronoi area.</returns>
+        public List<double> ComputeVertexVoronoiArea()
+        {
+            List<double> areas = new List<double>();
+            for (int i = 0; i < _mesh.TopologyVertices.Count; i++)
+            {
+                // Compute the voronoi area of a vertex
+                double VoronoiArea = 0.0;
+                int topologyVertexIndex = _mesh.TopologyVertices.TopologyVertexIndex(i);
+                Debug.Print("Connected Faces {0}", _mesh.TopologyVertices.ConnectedFaces(topologyVertexIndex).Length);
+                foreach (int index in _mesh.TopologyVertices.ConnectedFaces(topologyVertexIndex))
+                {
+                    MeshFace face = _mesh.Faces[index];
+                    Point3d Vi = _mesh.Vertices[face.A];
+                    Point3d Vj = _mesh.Vertices[face.B];
+                    Point3d Vk = _mesh.Vertices[face.C];
+
+                    double faceArea = 0.5 * Vector3d.CrossProduct(Vj - Vi, Vk - Vi).Length;
+                    double faceAReatest = 0.5 * Vector3d.CrossProduct(Vj - Vi, Vi - Vk).Length;
+                    // For now, the voronoi area is considered to be a third of the total area of triangles surrounding the vertex.
+                    VoronoiArea += faceArea / 3;
+                }
+                areas.Add(VoronoiArea);
+            }
+            return areas;
         }
 
         /// <summary>
-        /// Computes the error.
+        /// Computes the PER FACE gradient of a piecewise scalar function on the vertex of a mesh
         /// </summary>
-        /// <returns>The error.</returns>
-        /// <param name="n">N.</param>
-        /// <param name="x">The x coordinate.</param>
-        public double ComputeError(int n, double[] x)
+        /// <returns>The gradient of the function as a constant vector per face of the mesh</returns>
+        public void ComputeGradient()
         {
-            double alpha = x[0];
-            Curve curve = perpGeodesics[startIndex];
-            Point3d pt = curve.PointAt(perpParameters[startIndex]);
-            Vector3d vector = curve.TangentAt(perpParameters[startIndex]);
+            List<Vector3d> gradientVectors = new List<Vector3d>();
 
-            MeshPoint mPt = mesh.ClosestMeshPoint(pt, 0.0);
-            Vector3d normal = mesh.NormalAt(mPt);
-            Vector3d cP = Vector3d.CrossProduct(vector, normal);
-            cP.Rotate(alpha, normal);
-
-            Curve newG = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, cP, maxIter).ToNurbsCurve();
-            if (bothDir)
+            // Gradient is calculated PER FACE
+            foreach (MeshFace face in _mesh.Faces)
             {
-                Curve newG2 = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, -cP, maxIter).ToNurbsCurve();
-                newG = Curve.JoinCurves(new List<Curve> { newG, newG2 })[0];
+                // Vertices
+                Point3d i = _mesh.Vertices[face.A];
+                Point3d j = _mesh.Vertices[face.B];
+                Point3d k = _mesh.Vertices[face.C];
+                // Edges
+                Vector3d eij = j - i;
+                Vector3d ejk = k - j;
+                Vector3d eki = i - k;
+                // Vertex values
+                double gi = _vertexValues[face.A];
+                double gj = _vertexValues[face.B];
+                double gk = _vertexValues[face.C];
+                // Face area & normal
+                double faceArea = Vector3d.CrossProduct(eij, k - i).Length / 2;
+                Vector3d faceNormal = Vector3d.CrossProduct(ejk, eki) / (2 * faceArea);
+                // Compute 90 degree rotated grad
+                Vector3d rotatedGrad = (gi * ejk + gj * eki + gk * eij) / (2 * faceArea);
+                // Rotate -90 degrees to obtain face grad
+                Vector3d grad = Vector3d.CrossProduct(rotatedGrad, faceNormal);
+                // Add gradient vector to list
+                gradientVectors.Add(grad);
             }
-
-            // Assign resulting geodesic to global property for output.
-            selectedGeodesic = newG;
-
-            // Calculate error
-            double error = 0;
-
-            for (int i = 0; i < perpGeodesics.Count - 1; i++)
-            {
-                Curve g = perpGeodesics[i];
-                CurveIntersections cvInt = Intersection.CurveCurve(newG, g, 0.00001, 0.00001);
-                if (cvInt.Count > 0)
-                {
-                    // Compute distance if intersection is found
-                    double param = cvInt[0].ParameterB;
-                    Interval domain = new Interval(param, perpParameters[i]);
-                    double distance = g.GetLength(domain);
-                    // Add squared distance to error
-                    error += Math.Pow(distance, 2);
-                }
-                else
-                {
-                    // Penalize if no intersection is found on this perp geodesic
-                    error += 10;
-                }
-            }
-            return error;
+            _gradient = gradientVectors;
         }
+
+        /// <summary>
+        /// Compute the PER VERTEX divergence of a face-based gradient vector field.
+        /// </summary>
+        /// <returns>The PER VERTEX divergence</returns>
+        /// <param name="normalize">If set to <c>true</c>, normalize the vector field.</param>
+        public List<double> ComputeDivergence(bool normalize)
+        {
+            // Divergence of a face based vector field computed PER VERTEX
+            //throw new NotImplementedException("ComputeDivergence() has not been implemented yet");
+            List<double> divergence = new List<double>();
+            for (int i = 0; i < _mesh.Vertices.Count; i++)
+            {
+                Point3d vertex = _mesh.Vertices[i];
+                double divV = 0.0;
+                foreach (int faceIndex in _mesh.TopologyVertices.ConnectedFaces(_mesh.TopologyVertices.TopologyVertexIndex(i)))
+                {
+                    Vector3d grad = Gradient[faceIndex];
+                    if (normalize) grad.Unitize();
+                    Vector3d faceNormal = _mesh.FaceNormals[faceIndex];
+
+                    Vector3d oppositeEdge = Vector3d.Unset;
+                    // Find the opposite edge of the current vertex in this face
+                    if (_mesh.Vertices[_mesh.Faces[faceIndex].A] == vertex) oppositeEdge = _mesh.Vertices[_mesh.Faces[faceIndex].C] - _mesh.Vertices[_mesh.Faces[faceIndex].B];
+                    if (_mesh.Vertices[_mesh.Faces[faceIndex].B] == vertex) oppositeEdge = _mesh.Vertices[_mesh.Faces[faceIndex].A] - _mesh.Vertices[_mesh.Faces[faceIndex].C];
+                    if (_mesh.Vertices[_mesh.Faces[faceIndex].C] == vertex) oppositeEdge = _mesh.Vertices[_mesh.Faces[faceIndex].B] - _mesh.Vertices[_mesh.Faces[faceIndex].A];
+
+                    double faceDiv = Vector3d.Multiply(grad, Vector3d.CrossProduct(faceNormal, oppositeEdge));
+                    divV += faceDiv;    
+                }
+                divergence.Add(-divV);
+            }
+            return divergence;
+        }
+
+        /// <summary>
+        /// Geodesic curvature fit function
+        /// </summary>
+        /// <returns>Fk - Global geodesic fittness of the scalar field</returns>
+        public double FitK()
+        {
+            // FitK = Sumation of all vFk's
+            double Fk = 0.0;
+            // Compute NORMALIZED divergence (the divergence of the normalized gradient)
+            List<double> divergence = ComputeDivergence(true);
+            for (int i = 0; i < _mesh.Vertices.Count; i++)
+            {
+                // FK in vertex V -> vFk = (Voronoi Area of Vertex) * (Divergence of Normalized Field)^2
+                Fk += VertexVoronoiArea[i] * Math.Pow(divergence[i], 2);
+            }
+            return Fk;
+        }
+
+        /// <summary>
+        /// Regularization fitness function
+        /// </summary>
+        /// <returns>F△ - The regularization fittnes value of the scalar field</returns>
+        public double FitA()
+        {
+            // F△ = (Area of Mesh) * (Sumation of all F△'s)
+            double Fa = 0.0; // F△
+            double meshArea = AreaMassProperties.Compute(_mesh).Area;
+            // Compute divergence
+            List<double> divergence = ComputeDivergence(false);
+
+            for (int i = 0; i < _mesh.Vertices.Count; i++)
+            {
+                // F△(v) = (Voronoi Area of Vertex) * (Divergence of Field)^2
+                Fa += VertexVoronoiArea[i] * Math.Pow(divergence[i], 2);
+            }
+
+            //Multiply FitA result by Mesh Area
+            Fa *= meshArea;
+
+            // Output result
+            return Fa;
+                
+        }
+
+        /// <summary>
+        /// Width fitness function
+        /// </summary>
+        /// <returns>Fw - Global constant width fitness value of the scalar field.</returns>
+        /// <param name="w">The desired width.</param>
+        /// <param name="h">Numerical value of separation in scalar field (usually 1)</param>
+        public double FitW(double w, double h)
+        {
+            // Compute Equal Width fitness of Gradient Field
+            double Fw = 0.0;
+            for (int i = 0; i < _mesh.Faces.Count; i++)
+            {
+                MeshFace face = _mesh.Faces[i];
+                Vector3d faceVector = Gradient[i];
+                // Vertices
+                Point3d Vi = _mesh.Vertices[face.A];
+                Point3d Vj = _mesh.Vertices[face.B];
+                Point3d Vk = _mesh.Vertices[face.C];
+
+                double faceArea = Vector3d.CrossProduct(Vj - Vi, Vk - Vi).Length / 2 ;
+
+                double vFw = faceArea * Math.Pow(faceVector.Length - (h / w), 2);
+
+                Fw += vFw;
+            } 
+            return Fw;
+        }
+        int computeCount = 0;
+        /// <summary>
+        /// Optimization Function
+        /// </summary>
+        /// <returns>Value to minimize</returns>
+        /// <param name="i">Number of variables in <paramref name="x"/></param>
+        /// <param name="x">Array containing the variable values</param>
+        public double Compute(int i, double[] x)
+        {
+            //throw new NotImplementedException("Draw Level Set Curves is not implemented yet");
+            _vertexValues = new List<double>(x);
+            ComputeGradient();
+            double fk = FitK();
+            double fa = FitA();
+            double fw = FitW(_desiredWidth,0.1);
+            double Fmin = fk + _lambda * fa + _nu * fw;
+            if (computeCount%100 == 0) Debug.Print("Iter {0} Fmin = {1}",computeCount, Fmin);
+            computeCount++;
+            return Fmin;
+        }
+
+        /// <summary>
+        /// Draws the level set curves.
+        /// </summary>
+        public void DrawLevelSetCurves()
+        {
+            
+        }
+
+        /// <summary>
+        /// Run this instance.
+        /// </summary>
+        public void Run()
+        {
+            throw new NotImplementedException("Run() is not implemented yet");
+        }
+
     }
-
-
 }
