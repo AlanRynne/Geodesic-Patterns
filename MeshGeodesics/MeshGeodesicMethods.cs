@@ -10,6 +10,8 @@ using Rhino.Geometry.Collections;
 
 using Cureos.Numerics.Optimizers;
 
+#pragma warning disable 1591
+
 namespace MeshGeodesics
 {
 
@@ -561,6 +563,7 @@ namespace MeshGeodesics
         /// <param name="_startData">Start data.</param>
         /// <param name="_xl">Xl.</param>
         /// <param name="_xu">Xu.</param>
+        /// <param name="type">Generation type: 0 for doubleside, 1 for end side, 2 for start side of curve</param>
         public List<Curve> GenerateSubCurves(double[] _startData, double[] _xl, double[] _xu, int type)
         {
 
@@ -686,7 +689,6 @@ namespace MeshGeodesics
                     Point3d Vk = _mesh.Vertices[face.C];
 
                     double faceArea = 0.5 * Vector3d.CrossProduct(Vj - Vi, Vk - Vi).Length;
-                    double faceAReatest = 0.5 * Vector3d.CrossProduct(Vj - Vi, Vi - Vk).Length;
                     // For now, the voronoi area is considered to be a third of the total area of triangles surrounding the vertex.
                     VoronoiArea += faceArea / 3;
                 }
@@ -836,6 +838,7 @@ namespace MeshGeodesics
             } 
             return Fw;
         }
+
         int computeCount = 0;
         /// <summary>
         /// Optimization Function
