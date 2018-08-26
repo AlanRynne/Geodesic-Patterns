@@ -853,7 +853,7 @@ namespace MeshGeodesics
             ComputeGradient();
             double fk = FitK();
             double fa = FitA();
-            double fw = FitW(_desiredWidth,0.1);
+            double fw = FitW(_desiredWidth,1);
             double Fmin = fk + _lambda * fa + _nu * fw;
             if (computeCount%100 == 0) Debug.Print("Iter {0} Fmin = {1}",computeCount, Fmin);
             computeCount++;
@@ -863,17 +863,67 @@ namespace MeshGeodesics
         /// <summary>
         /// Draws the level set curves.
         /// </summary>
-        public void DrawLevelSetCurves()
+        public DataTree<Line> DrawLevelSetCurves(List<double> plotValues)
         {
-            
+            DataTree<Line> plotLineTree = new DataTree<Line>();
+            // Iterate each face once
+            foreach (MeshFace face in _mesh.Faces)
+            {
+                // Iterate each value once per face 
+                for (int i = 0; i < plotValues.Count; i++)
+                {
+                    Line levelLine;
+                    double value = plotValues[i];
+
+                    bool success = CheckLevelSetInFace(value, face, out levelLine);
+
+                    if (success) plotLineTree.Add(levelLine, new Grasshopper.Kernel.Data.GH_Path(i));
+                }
+            }
+            return plotLineTree;
+
         }
 
-        /// <summary>
-        /// Run this instance.
-        /// </summary>
-        public void Run()
+        bool CheckLevelSetInFace(double level, MeshFace face, out Line line)
         {
-            throw new NotImplementedException("Run() is not implemented yet");
+            List<double> vertexValues = new List<double> { VertexValues[face.A], VertexValues[face.B], VertexValues[face.C] };
+            List<Point3d> faceVertices = new List<Point3d> { _mesh.Vertices[face.A], _mesh.Vertices[face.B], _mesh.Vertices[face.C] };
+
+            List<int> above = new List<int>();
+            List<int> below = new List<int>();
+
+            for (int i = 0; i < vertexValues.Count; i++)
+            {
+                if (vertexValues[i] < level) below.Add(i);
+                else above.Add(i);
+            }
+
+            if (above.Count == 3 || below.Count == 3)
+            {
+                // Triangle is above or below level
+                line = new Line();
+                return false;
+            }
+            else
+            {
+                // Triangle intersects level
+                List<Point3d> intersectionPoints = new List<Point3d>();
+
+                foreach (int i in above)
+                {
+                    foreach (int j in below)
+                    {
+                        double diff = vertexValues[i] - vertexValues[j];
+                        double desiredDiff = level - vertexValues[j];
+                        double unitizedDistance = desiredDiff / diff;
+                        Vector3d edgeV = faceVertices[i] - faceVertices[j];
+                        Point3d levelPoint = faceVertices[j] + edgeV * unitizedDistance;
+                        intersectionPoints.Add(levelPoint);
+                    }
+                }
+                line = new Line(intersectionPoints[0], intersectionPoints[1]);
+                return true;
+            }
         }
 
     }

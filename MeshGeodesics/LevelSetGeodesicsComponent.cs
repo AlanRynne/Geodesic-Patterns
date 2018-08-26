@@ -39,7 +39,7 @@ namespace MeshGeodesics
             pManager.AddNumberParameter("Width", "W", "Desired separation between geodesics", GH_ParamAccess.item);
             pManager.AddNumberParameter("Lambda", "lmbd", "Regularization weight", GH_ParamAccess.item);
             pManager.AddNumberParameter("Nu", "nu", "Equal width weight", GH_ParamAccess.item);
-
+            pManager.AddIntegerParameter("Max Iter", "Iter", "Maximum Iterations for the Vector Field Optimization.\nCareful with this setting!! It might take a while to finish...", GH_ParamAccess.item, 500);
         }
 
         /// <summary>
@@ -47,12 +47,13 @@ namespace MeshGeodesics
         /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            pManager.AddCurveParameter("Pattern", "P", "Resulting level set curve pattern", GH_ParamAccess.list);
+            pManager.AddCurveParameter("Pattern", "P", "Resulting level set curve pattern", GH_ParamAccess.tree);
             pManager.AddVectorParameter("Gradient", "grad", "Gradient of scalar field per face", GH_ParamAccess.list);
             pManager.AddNumberParameter("Divergence", "div", "Divergence of the gradient per vertex", GH_ParamAccess.list);
             pManager.AddNumberParameter("Voronoi Area", "A", "Voronoi Area of each vertex of the mesh", GH_ParamAccess.list);
             pManager.AddNumberParameter("MinimizationValue", "Min", "Minimization value", GH_ParamAccess.item);
             pManager.AddNumberParameter("Function values", "Values", "Resulting scalar function values", GH_ParamAccess.list);
+            pManager.AddNumberParameter("Normalized Divergence", "Kg", "Geodesic curvature per vertex or: the divergence of the normalized gradient of the scalar function", GH_ParamAccess.list);
         }
 
         /// <summary>
@@ -67,12 +68,14 @@ namespace MeshGeodesics
             double desiredWidth = 0.0;
             double lambda = 0.0;
             double nu = 0.0;
+            int maxCalls = 0;
 
             if (!DA.GetData(0, ref mesh)) return;
             if (!DA.GetDataList(1, initialValues)) return;
             if (!DA.GetData(2, ref desiredWidth)) return;
             if (!DA.GetData(3, ref lambda)) return;
             if (!DA.GetData(4, ref nu)) return;
+            if (!DA.GetData(5, ref maxCalls)) return;
 
 
             mesh.FaceNormals.ComputeFaceNormals();
@@ -80,19 +83,39 @@ namespace MeshGeodesics
             GeodesicsFromLevelSets levelSets = new GeodesicsFromLevelSets(mesh, initialValues, desiredWidth, lambda, nu);
 
             var optimizer = new Bobyqa(mesh.Vertices.Count, levelSets.Compute);
-            optimizer.MaximumFunctionCalls = 200;
+            optimizer.MaximumFunctionCalls = maxCalls;
 
             double[] x = initialValues.ToArray();
             var result = optimizer.FindMinimum(x);
-            List<double> finalValues = new List<double>(result.X);  
 
+            List<double> desiredLevels = new List<double>();
+            double max = 0.0;
+            double min = 0.0;
+            for (int i = 0; i < levelSets.VertexValues.Count; i++)
+            {
+                double value = levelSets.VertexValues[i];
+                if (i == 0) { max = value; min = value; }
+
+                if (value < min) min = value;
+                if (value > max) max = value;
+            }
+
+            double diff = max - min;
+            int levelCount = (int)(diff / desiredWidth);
+
+            for (int j = 0; j <= levelCount; j++) desiredLevels.Add(min + (j * desiredWidth));
+
+            DataTree<Line> pattern = levelSets.DrawLevelSetCurves(desiredLevels);
             List<double> divergence = levelSets.ComputeDivergence(false);
+            List<double> divergenceNorm = levelSets.ComputeDivergence(true);
 
+            DA.SetDataTree(0, pattern);
             DA.SetDataList(1, levelSets.Gradient);
             DA.SetDataList(2, divergence);
             DA.SetDataList(3, levelSets.VertexVoronoiArea);
             DA.SetData(4, result.F);
-            DA.SetDataList(5, finalValues);
+            DA.SetDataList(5, levelSets.VertexValues);
+            DA.SetDataList(6, divergenceNorm);
 
         }
 
@@ -106,7 +129,7 @@ namespace MeshGeodesics
             {
                 // You can add image files to your project resources and access them like this:
                 //return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.LevelSetG;
             }
         }
 
