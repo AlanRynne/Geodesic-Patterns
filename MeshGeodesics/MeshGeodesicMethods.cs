@@ -405,6 +405,7 @@ namespace MeshGeodesics
 
             Vector3d.VectorAngle(cP, refDir);
             Curve newG = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, cP, maxIter).ToNurbsCurve();
+            if (newG == null) return 100000000;
             if (bothDir)
             {
                 Curve newG2 = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, -cP, maxIter).ToNurbsCurve();
@@ -516,15 +517,18 @@ namespace MeshGeodesics
             {
 
                 Curve[] splitCurves = tempG.Split(t1);
-                foreach (Curve crv in splitCurves)
+                if (splitCurves != null)
                 {
-                    double closestT;
-                    crv.ClosestPoint(midPoint, out closestT);
-
-                    double distance = midPoint.DistanceTo(crv.PointAt(closestT));
-                    if (distance < 0.001)
+                    foreach (Curve crv in splitCurves)
                     {
-                        tempG = crv;
+                        double closestT;
+                        crv.ClosestPoint(midPoint, out closestT);
+
+                        double distance = midPoint.DistanceTo(crv.PointAt(closestT));
+                        if (distance < 0.001)
+                        {
+                            tempG = crv;
+                        }
                     }
                 }
 
@@ -538,15 +542,18 @@ namespace MeshGeodesics
             if (curveInt2.Count != 0 && t2 < tempG.Domain.T1 && t2 > 0)
             {
                 Curve[] splitCurves = tempG.Split(t2);
-                foreach (Curve crv in splitCurves)
+                if (splitCurves != null)
                 {
-                    double closestT;
-                    crv.ClosestPoint(midPoint, out closestT);
-
-                    double distance = midPoint.DistanceTo(crv.PointAt(closestT));
-                    if (distance < 0.001)
+                    foreach (Curve crv in splitCurves)
                     {
-                        tempG = crv;
+                        double closestT;
+                        crv.ClosestPoint(midPoint, out closestT);
+
+                        double distance = midPoint.DistanceTo(crv.PointAt(closestT));
+                        if (distance < 0.001)
+                        {
+                            tempG = crv;
+                        }
                     }
                 }
 
@@ -563,7 +570,7 @@ namespace MeshGeodesics
         /// <param name="_startData">Start data.</param>
         /// <param name="_xl">Xl.</param>
         /// <param name="_xu">Xu.</param>
-        /// <param name="type">Generation type: 0 for doubleside, 1 for end side, 2 for start side of curve</param>
+        /// <param name="type">Generation type: 0 for doubleside, 1 for end side, -1 for start side of curve</param>
         public List<Curve> GenerateSubCurves(double[] _startData, double[] _xl, double[] _xu, int type)
         {
 
@@ -593,7 +600,7 @@ namespace MeshGeodesics
                         break;
                 }
 
-                if (bestFitInterval[1] < (perpGeodesics.Count - 1))
+                if ((bestFitInterval[1] < (perpGeodesics.Count - 1)) && (type == 0 ||  type == 1))
                 {
                     List<Curve> tempGeodesics = perpGeodesics.GetRange(bestFitInterval[1], (perpGeodesics.Count - bestFitInterval[1]));
                     List<double> tempParameters = perpParameters.GetRange(bestFitInterval[1], (perpGeodesics.Count - bestFitInterval[1]));
@@ -601,15 +608,22 @@ namespace MeshGeodesics
                     double t;
                     tempGeodesics[0].ClosestPoint(pieceWiseList[0].PointAtEnd, out t);
                     tempParameters[0] = t;
-                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, Convert.ToInt32(maxIter * 0.8), false, 0, threshold, tangent);
+                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter, false, 0, threshold, tangent);
                     var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
                     var tempResult = tempOptimizer.FindMinimum(startData);
 
-                    pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData, xl, xu, 1));
+                    if (tempBestFit.bestFitInterval.Length == 0)
+                    {
+                        pieceWiseList[0] = selectedGeodesic; //No best fit found
+                    }
+                    else
+                    {
+                        pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData, xl, xu, 1));
+                    }
 
                 }
 
-                if (bestFitInterval[0] > 0)
+                if (bestFitInterval[0] > 0 && (type == 0 || type == -1))
                 {
 
                     List<Curve> tempGeodesics = perpGeodesics.GetRange(0, bestFitInterval[0] + 1);
@@ -617,15 +631,23 @@ namespace MeshGeodesics
 
                     double t;
                     Vector3d tangent = pieceWiseList[0].TangentAtStart;
-                    tangent.Rotate(Math.PI, mesh.NormalAt(mesh.ClosestMeshPoint(pieceWiseList[0].PointAtStart, 0.0)));
+                    //tangent.Rotate(Math.PI, mesh.NormalAt(mesh.ClosestMeshPoint(pieceWiseList[0].PointAtStart, 0.0)));
 
                     tempGeodesics[tempGeodesics.Count - 1].ClosestPoint(pieceWiseList[0].PointAtStart, out t);
                     tempParameters[tempGeodesics.Count - 1] = t;
-                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, Convert.ToInt32(maxIter * 0.8), false, tempGeodesics.Count - 1, threshold, tangent);
+                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter, false, tempGeodesics.Count - 1, threshold, -tangent);
                     var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
                     var tempResult = tempOptimizer.FindMinimum(startData);
-                    //pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData,xl,xu,-1));
-                    pieceWiseList.Add(tempBestFit.selectedGeodesic);
+
+                    if (tempBestFit.bestFitInterval.Length == 0)
+                    { 
+                        pieceWiseList.Add(tempBestFit.selectedGeodesic); // No best fit found;
+                    }
+                    else
+                    {
+                        tempBestFit.selectedGeodesic.Reverse();
+                        pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData, xl, xu, -1));
+                    }
                 }
             }
             return pieceWiseList;
@@ -665,6 +687,7 @@ namespace MeshGeodesics
             _nu = nu;
             _lambda = lambda;
             VertexVoronoiArea = ComputeVertexVoronoiArea();
+            ComputeGradient();
         }
 
 
@@ -680,7 +703,6 @@ namespace MeshGeodesics
                 // Compute the voronoi area of a vertex
                 double VoronoiArea = 0.0;
                 int topologyVertexIndex = _mesh.TopologyVertices.TopologyVertexIndex(i);
-                Debug.Print("Connected Faces {0}", _mesh.TopologyVertices.ConnectedFaces(topologyVertexIndex).Length);
                 foreach (int index in _mesh.TopologyVertices.ConnectedFaces(topologyVertexIndex))
                 {
                     MeshFace face = _mesh.Faces[index];
@@ -855,7 +877,7 @@ namespace MeshGeodesics
             double fa = FitA();
             double fw = FitW(_desiredWidth,1);
             double Fmin = fk + _lambda * fa + _nu * fw;
-            if (computeCount%100 == 0) Debug.Print("Iter {0} Fmin = {1}",computeCount, Fmin);
+            if (computeCount%100 == 0)Debug.Print("Iter {0} Fmin = {1}",computeCount, Fmin);
             computeCount++;
             return Fmin;
         }
@@ -926,5 +948,36 @@ namespace MeshGeodesics
             }
         }
 
+    }
+
+    public class LevelSetOpt : LibOptimization.Optimization.absObjectiveFunction
+    {
+        // Private fields
+        public GeodesicsFromLevelSets levelSets;
+
+        public LevelSetOpt(GeodesicsFromLevelSets _levelSets)
+        {
+            levelSets = _levelSets;
+        }
+        public override double F(List<double> x)
+        {
+            return levelSets.Compute(levelSets.VertexValues.Count, x.ToArray());
+        }
+
+        public override List<double> Gradient(List<double> x)
+        {
+            levelSets.ComputeGradient();
+            return levelSets.ComputeDivergence(true);
+        }
+
+        public override List<List<double>> Hessian(List<double> x)
+        {
+            return null;
+        }
+
+        public override int NumberOfVariable()
+        {
+            return levelSets.VertexValues.Count;
+        }
     }
 }

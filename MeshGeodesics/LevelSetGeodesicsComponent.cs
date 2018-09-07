@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Windows.Forms;
 
 using Grasshopper;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 
 using Cureos.Numerics.Optimizers;
+using LibOptimization.Optimization;
+using LibOptimization.Util;
+using LibOptimization;
 
 namespace MeshGeodesics
 {
@@ -40,6 +44,7 @@ namespace MeshGeodesics
             pManager.AddNumberParameter("Lambda", "lmbd", "Regularization weight", GH_ParamAccess.item);
             pManager.AddNumberParameter("Nu", "nu", "Equal width weight", GH_ParamAccess.item);
             pManager.AddIntegerParameter("Max Iter", "Iter", "Maximum Iterations for the Vector Field Optimization.\nCareful with this setting!! It might take a while to finish...", GH_ParamAccess.item, 500);
+            pManager.AddIntegerParameter("Optimizer", "Opti", "Select desired optimizer: 0=BOBYQA 1=NelderMead 2=SimulatedAnnealing 3=Firefly",GH_ParamAccess.item,0);
         }
 
         /// <summary>
@@ -69,6 +74,7 @@ namespace MeshGeodesics
             double lambda = 0.0;
             double nu = 0.0;
             int maxCalls = 0;
+            int optim = 0;
 
             if (!DA.GetData(0, ref mesh)) return;
             if (!DA.GetDataList(1, initialValues)) return;
@@ -76,6 +82,7 @@ namespace MeshGeodesics
             if (!DA.GetData(3, ref lambda)) return;
             if (!DA.GetData(4, ref nu)) return;
             if (!DA.GetData(5, ref maxCalls)) return;
+            if (!DA.GetData(6, ref optim)) return;
 
 
             mesh.FaceNormals.ComputeFaceNormals();
@@ -84,9 +91,73 @@ namespace MeshGeodesics
 
             var optimizer = new Bobyqa(mesh.Vertices.Count, levelSets.Compute);
             optimizer.MaximumFunctionCalls = maxCalls;
-
             double[] x = initialValues.ToArray();
-            var result = optimizer.FindMinimum(x);
+
+
+            var func = new LevelSetOpt(levelSets);
+
+            var opt = new clsOptNelderMead(func);
+            //if (optim == 1) opt = new clsOptNelderMead(func);
+            //if (optim == 2) opt = new clsOptSimulatedAnnealing(func);
+            //if (optim == 3) opt = new clsFireFly(func);
+
+            opt.InitialPosition = initialValues.ToArray();
+            opt.Iteration = maxCalls;
+            double finalError = 0;
+            bool retry = false;
+
+            do
+            {
+                double[] resultX = {};
+                if (optim == 0)
+                {
+                    var result = optimizer.FindMinimum(x);
+                    finalError = result.F;
+                    resultX = result.X;
+                }
+                else if (optim > 0)
+                { // Nelder mead & simulated annealing
+                    opt.Init();
+
+                    while (opt.DoIteration(100) == false)
+                    {
+                        var eval = opt.Result.Eval;
+                    
+                        //my criterion
+                        if (eval < 0.01)
+                        {
+                            break;
+                        }
+
+                        Console.WriteLine("Eval:{0}", opt.Result.Eval);
+                    }
+                    clsUtil.DebugValue(opt);
+                    finalError = opt.Result.Eval;
+                }
+
+
+                String str = "Optimization ended with an error of" + finalError + "\nDo you wish to run again using this results as input?";
+                if (MessageBox.Show(str,"Optimization Ended",MessageBoxButtons.YesNo, MessageBoxIcon.Stop,MessageBoxDefaultButton.Button1) == DialogResult.Yes)
+                {
+                    
+                    retry = true;
+                    if (optim == 0)
+                    {
+                        x = resultX;
+                    }
+                    if (optim > 0)
+                    {
+                        func.levelSets.VertexValues = opt.Result;
+                        opt.InitialPosition = opt.Result.ToArray();
+                    }
+                }
+                else
+                {
+                    retry = false;
+                }
+            } while (retry == true);
+
+            //levelSets = func.levelSets;
 
             List<double> desiredLevels = new List<double>();
             double max = 0.0;
@@ -113,7 +184,7 @@ namespace MeshGeodesics
             DA.SetDataList(1, levelSets.Gradient);
             DA.SetDataList(2, divergence);
             DA.SetDataList(3, levelSets.VertexVoronoiArea);
-            DA.SetData(4, result.F);
+            //DA.SetData(4, result.F);
             DA.SetDataList(5, levelSets.VertexValues);
             DA.SetDataList(6, divergenceNorm);
 
