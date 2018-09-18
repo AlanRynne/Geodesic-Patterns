@@ -37,11 +37,13 @@ namespace MeshGeodesics
             pManager.AddMeshParameter("Mesh", "M", "Mesh to draw geodesics on", GH_ParamAccess.item);
             pManager.AddCurveParameter("Perp. Geodesics", "Pg", "Set of reference measurement geodesics on a given mesh.", GH_ParamAccess.list);
             pManager.AddNumberParameter("Parameter at Pg", "t", "Parameter of point of reference on Pg", GH_ParamAccess.list);
-            pManager.AddIntegerParameter("Maximum Iterations", "Iter", "Integer representing the maximum number of steps for the geodesic curve algorithm", GH_ParamAccess.item, 50);
+            pManager.AddIntegerParameter("Maximum Iterations", "Iter", "Integer representing the maximum number of steps for the geodesic curve algorithm", GH_ParamAccess.item, 5);
             pManager.AddBooleanParameter("Both Directions", "BothDir", "Generate the geodesic on both directions",GH_ParamAccess.item,false);
             pManager.AddIntegerParameter("Start Point Index", "StIndex", "Index of starting point to use from the t' list", GH_ParamAccess.item);
             pManager.AddNumberParameter("Threshold", "e", "Margin of error alowed for the selection of the interval.", GH_ParamAccess.item);
             pManager.AddCurveParameter("Start Geodesic", "Sg", "Starting curve for pattern", GH_ParamAccess.item);
+            pManager.AddNumberParameter("Width", "w", "Desired pattern width", GH_ParamAccess.item, 1);
+            pManager.AddNumberParameter("Perp step size", "Ps", "Separation between perp geodesics", GH_ParamAccess.item, 0.5);
 
         }
 
@@ -75,6 +77,8 @@ namespace MeshGeodesics
             perpParameters = new List<double>();
             double threshold = 0.0;
             Curve initialCurve = null;
+            double specifiedLength = 0.0;
+            double perpStepSize = 0.3;
 
             // Set the input data
             if (!DA.GetData(0, ref mesh)) return;
@@ -85,14 +89,13 @@ namespace MeshGeodesics
             if (!DA.GetData(5, ref startIndex)) return;
             if (!DA.GetData(6, ref threshold)) return;
             if (!DA.GetData(7, ref initialCurve)) return;
+            if (!DA.GetData(8, ref specifiedLength)) return;
+            if (!DA.GetData(9, ref perpStepSize)) return;
 
             // Data validation
             if (maxIter == 0) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "MaxIter cannot be 0");
             if (!mesh.IsValid) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Mesh is invalid");
-            if (perpGeodesics.Count < 2) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "There must be at least 2 perpendicular geodesics");
-            if (perpParameters.Count != perpGeodesics.Count) AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Curves and Params list must have the same number of items");
 
-            double specifiedLength = 1;
 
             DataTree<Curve> pattern = new DataTree<Curve>();
             Curve previousCurve = initialCurve;
@@ -106,7 +109,7 @@ namespace MeshGeodesics
                 tempPerpParams = new List<double>();
 
                 // Divide curve
-                double[] geodParams = previousCurve.DivideByLength(0.3, true);
+                double[] geodParams = previousCurve.DivideByLength(perpStepSize, true);
 
                 if (geodParams == null)
                 {
@@ -147,6 +150,11 @@ namespace MeshGeodesics
                     }
                 }
 
+                // Clean perp geods of intersections ocurring BEFORE the specified distance
+                var result = CleanPerpGeodesics(tempPerpGeods, tempPerpParams, specifiedLength);
+                tempPerpGeods = result.perpGeodesics;
+                tempPerpParams = result.perpParams;
+
                 if (tempPerpGeods.Count < 3)
                 {
                     AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "Not  enough perp geodesics where found for iter " + i);
@@ -155,7 +163,7 @@ namespace MeshGeodesics
                 else
                 {
                     //Generate the next piecewise geodesic
-                    List<Curve> iterCurves = GeneratePiecewiseGeodesicCurve(mesh, tempPerpParams, tempPerpGeods, 10000, bothDir, tempPerpGeods.Count / 2, threshold);
+                    List<Curve> iterCurves = GeneratePiecewiseGeodesicCurve(mesh, tempPerpParams, tempPerpGeods, 1000, bothDir, 1, threshold);
                     // Add it to the pattern
                     pattern.AddRange(iterCurves, new GH_Path(i));
                     // Assign as previous for the next round
@@ -201,9 +209,12 @@ namespace MeshGeodesics
         {
             // Generate Initial values and variable Bounds for the optimization problem.
             // Only using first variable for now, the extra variable is just to make it work.
-            double[] startData = { 0.010, 0 };
-            double[] xl = new double[] { -0.28 * Math.PI, -1 };
-            double[] xu = new double[] { 0.28 * Math.PI, 1 };
+            Random rnd = new Random();
+            double limit = 0.05;
+            double start = (rnd.NextDouble() * limit) - (limit / 2);
+            double[] startData = { start, 0 };
+            double[] xl = new double[] { -limit * Math.PI, -1 };
+            double[] xu = new double[] { limit * Math.PI, 1 };
 
 
             BestFitPieceWiseGeodesic bestFitG = new BestFitPieceWiseGeodesic(mesh, perpGeodesics, perpParameters, maxIter, bothDir, startIndex, threshold, Vector3d.Unset);
@@ -213,7 +224,19 @@ namespace MeshGeodesics
 
             if (bestFitG.bestFitInterval.Length == 0)
             {
+                do
+                {
+                    limit += 0.01;
+                    start = (rnd.NextDouble() * limit) - (limit / 2);
+                    startData[0] = start;
+                    xl = new double[] { -limit * Math.PI, -1 };
+                    xu = new double[] { limit * Math.PI, 1 };
+                    optimizer = new Bobyqa(2, bestFitG.ComputeError, xl, xu);
+                    result = optimizer.FindMinimum(startData);
+                } while (limit < 0.35);
+
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "No best interval found?!");
+
             }
 
             // Sub curves methods go here
@@ -222,5 +245,47 @@ namespace MeshGeodesics
             return pieceWiseList;
         }
 
+        public struct CleanPerps
+        {
+            public List<Curve> perpGeodesics;
+            public List<double> perpParams;
+        }
+
+        public CleanPerps CleanPerpGeodesics(List<Curve> perpGeodesics, List<double> perpParams, double distance)
+        {
+            List<Curve> cleanCurves = perpGeodesics;
+            List<double> cleanParams = perpParams;
+            double specifiedDistance = distance;
+
+            bool erased = false;
+            do
+            {
+                erased = false;
+                for (int i = (cleanCurves.Count - 1); i >= 1; i--)
+                {
+                    Curve thisCurve = cleanCurves[i];
+                    Curve nextCurve = cleanCurves[i - 1];
+                    var crvInt = Rhino.Geometry.Intersect.Intersection.CurveCurve(thisCurve, nextCurve, 0.0, 0.0);
+                    if (crvInt.Count != 0 && crvInt != null)
+                    {
+                        Interval dom = new Interval(0, crvInt[0].ParameterA);
+                        double dist = thisCurve.GetLength(dom);
+                        if (dist < specifiedDistance)
+                        {
+                            cleanCurves.RemoveAt(i);
+                            cleanParams.RemoveAt(i);
+                            erased = true;
+                        }
+                    }
+                }
+
+            } while (erased == true);
+
+            CleanPerps result = new CleanPerps();
+            result.perpGeodesics = cleanCurves;
+            result.perpParams = cleanParams;
+
+            return result;
+        }
     }
 }
