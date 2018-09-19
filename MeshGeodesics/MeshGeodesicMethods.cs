@@ -265,7 +265,6 @@ namespace MeshGeodesics
 
     }
 
-
     /// <summary>
     /// Best fit geodesic.
     /// </summary>
@@ -359,7 +358,6 @@ namespace MeshGeodesics
         }
     }
 
-
     /// <summary>
     /// Best fit piece-wise geodesic.
     /// </summary>
@@ -389,6 +387,7 @@ namespace MeshGeodesics
         public new double ComputeError(int n, double[] x)
         {
             double alpha = x[0];
+
             bestFitInterval = new int[] { };
             Curve curve = perpGeodesics[startIndex];
             Point3d pt = curve.PointAt(perpParameters[startIndex]);
@@ -401,7 +400,6 @@ namespace MeshGeodesics
 
             if (refDir == Vector3d.Unset) refDir = cP;
             double angle = Vector3d.VectorAngle(cP, refDir);
-            if (angle >= 0.1 * Math.PI) cP = -cP;
 
             Vector3d.VectorAngle(cP, refDir);
             Curve newG = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, cP, maxIter).ToNurbsCurve();
@@ -409,6 +407,7 @@ namespace MeshGeodesics
             if (bothDir)
             {
                 Curve newG2 = MeshGeodesicMethods.getGeodesicCurveOnMesh(mesh, pt, -cP, maxIter).ToNurbsCurve();
+                newG2.Reverse();
                 newG = Curve.JoinCurves(new List<Curve> { newG, newG2 })[0];
             }
 
@@ -444,7 +443,7 @@ namespace MeshGeodesics
             }
 
             //Calculate longest interval within threshold.
-            for (int k = (distances.Count - 1); k >= 2; k--)
+            for (int k = (distances.Count - 1); k >= 1; k--)
             {
                 for (int i = 0; i < (distances.Count - k); i++)
                 {
@@ -623,33 +622,34 @@ namespace MeshGeodesics
 
                 }
 
-                if (bestFitInterval[0] > 0 && (type == 0 || type == -1))
-                {
+                //if (bestFitInterval[0] > 0 && (type == 0 || type == -1))
+                //{
 
-                    List<Curve> tempGeodesics = perpGeodesics.GetRange(0, bestFitInterval[0] + 1);
-                    List<double> tempParameters = perpParameters.GetRange(0, bestFitInterval[0] + 1);
+                //    List<Curve> tempGeodesics = perpGeodesics.GetRange(0, bestFitInterval[0] + 1);
+                //    List<double> tempParameters = perpParameters.GetRange(0, bestFitInterval[0] + 1);
 
-                    double t;
-                    Vector3d tangent = pieceWiseList[0].TangentAtStart;
-                    //tangent.Rotate(Math.PI, mesh.NormalAt(mesh.ClosestMeshPoint(pieceWiseList[0].PointAtStart, 0.0)));
+                //    double t;
+                //    Vector3d tangent = pieceWiseList[0].TangentAtStart;
+                //    //tangent.Rotate(Math.PI, mesh.NormalAt(mesh.ClosestMeshPoint(pieceWiseList[0].PointAtStart, 0.0)));
 
-                    tempGeodesics[tempGeodesics.Count - 1].ClosestPoint(pieceWiseList[0].PointAtStart, out t);
-                    tempParameters[tempGeodesics.Count - 1] = t;
-                    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter, false, tempGeodesics.Count - 1, threshold, -tangent);
-                    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
-                    var tempResult = tempOptimizer.FindMinimum(startData);
+                //    tempGeodesics[tempGeodesics.Count - 1].ClosestPoint(pieceWiseList[0].PointAtStart, out t);
+                //    tempParameters[tempGeodesics.Count - 1] = t;
+                //    BestFitPieceWiseGeodesic tempBestFit = new BestFitPieceWiseGeodesic(mesh, tempGeodesics, tempParameters, maxIter, false, tempGeodesics.Count - 1, threshold, -tangent);
+                //    var tempOptimizer = new Bobyqa(2, tempBestFit.ComputeError, xl, xu);
+                //    var tempResult = tempOptimizer.FindMinimum(startData);
 
-                    if (tempBestFit.bestFitInterval.Length == 0)
-                    { 
-                        pieceWiseList.Add(tempBestFit.selectedGeodesic); // No best fit found;
-                    }
-                    else
-                    {
-                        tempBestFit.selectedGeodesic.Reverse();
-                        pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData, xl, xu, -1));
-                    }
-                }
+                //    if (tempBestFit.bestFitInterval.Length == 0)
+                //    { 
+                //        pieceWiseList.Add(tempBestFit.selectedGeodesic); // No best fit found;
+                //    }
+                //    else
+                //    {
+                //        tempBestFit.selectedGeodesic.Reverse();
+                //        pieceWiseList.AddRange(tempBestFit.GenerateSubCurves(startData, xl, xu, -1));
+                //    }
+                //}
             }
+
             return pieceWiseList;
         }
 
