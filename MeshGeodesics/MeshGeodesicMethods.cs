@@ -669,6 +669,8 @@ namespace MeshGeodesics
         public List<double> VertexVoronoiArea { get => _vertexVoronoiArea; set => _vertexVoronoiArea = value; }
         public List<Vector3d> Gradient { get => _gradient; set => _gradient = value; }
 
+        public double minError = -1;
+        public double[] minValues = new double[]{};
         // Private fields
         Mesh _mesh;
         List<double> _vertexVoronoiArea;
@@ -688,6 +690,8 @@ namespace MeshGeodesics
             _lambda = lambda;
             VertexVoronoiArea = ComputeVertexVoronoiArea();
             ComputeGradient();
+            minValues = vertexValues.ToArray();
+            minError = -1;
         }
 
 
@@ -877,7 +881,7 @@ namespace MeshGeodesics
             double fa = FitA();
             double fw = FitW(_desiredWidth,1);
             double Fmin = fk + _lambda * fa + _nu * fw;
-            if (computeCount%100 == 0)Debug.Print("Iter {0} Fmin = {1}",computeCount, Fmin);
+            if (computeCount%100 == 0) Debug.Print("Iter = {0}, Fmin = {1}",computeCount, Fmin);
             computeCount++;
             return Fmin;
         }

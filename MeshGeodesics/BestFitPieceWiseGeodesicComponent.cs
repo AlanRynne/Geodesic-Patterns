@@ -217,7 +217,7 @@ namespace MeshGeodesics
             // Generate Initial values and variable Bounds for the optimization problem.
             // Only using first variable for now, the extra variable is just to make it work.
             Random rnd = new Random();
-            double limit = 0.05;
+            double limit = 0.35;
             double start = (rnd.NextDouble() * limit) - (limit / 2);
 
             double[] startData = { start, 0 };

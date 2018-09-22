@@ -71,6 +71,7 @@
     </Compile>
     <Compile Include="StartDirGeodesicComponent.cs" />
     <Compile Include="MeshGeodesicMethods.cs" />
+    <Compile Include="PanelStressComponent.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
