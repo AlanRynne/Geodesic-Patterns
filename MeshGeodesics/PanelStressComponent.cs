@@ -93,7 +93,7 @@ namespace MeshGeodesics
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("${Guid3}"); }
+            get { return new Guid("2bb54096-d2d9-41ff-b233-db993d8e58e8"); }
         }
 
         public double ComputeCurveTorsion(Curve c, int sampleCount)
@@ -134,7 +134,7 @@ namespace MeshGeodesics
         {
             double K = findMaxGaussianCurvatureInPanel(p, 0.05); // Gaussian Curvature (compute)
             double d = 0; // Width (calculate)
-            double E = 0; // Young Modulus
+            E = 0; // Young Modulus
 
             PanelResults results = new PanelResults();
 
@@ -166,7 +166,7 @@ namespace MeshGeodesics
             results.CurrentWidth = d;
 
             // Compute remaining stresses & assign to results
-            double steps = 30;
+            int steps = 30;
             results.MaxBending = ComputePanelBendingStress(c, h, E, steps);
             results.MaxShear = ComputePanelShearStress(h, G, ComputeCurveTorsion(c, steps));
 

@@ -418,6 +418,7 @@ namespace MeshGeodesics
             double error = 0;
             List<double> distances = new List<double>();
             List<double> signedDistances = new List<double>();
+            List<double> errorValues = new List<double>();
 
             for (int i = 0; i < perpGeodesics.Count - 1; i++)
             {
@@ -471,11 +472,19 @@ namespace MeshGeodesics
                 error += 1000000;
                 return error;
             }
-            error = error / (bestFitInterval[1] - bestFitInterval[0]);
+
+            double fixedError = 0;
+            for (int index = bestFitInterval[0]; index == bestFitInterval[1]; index ++)
+            {
+                fixedError += Math.Pow(signedDistances[index] - distances[index], 2);
+            }
+
+            fixedError /= (bestFitInterval[1] - bestFitInterval[0]);
+            //error = error / (bestFitInterval[1] - bestFitInterval[0]);
 
             //if (invertDir) selectedGeodesic.Reverse();
 
-            return error;
+            return fixedError;
         }
 
         /// <summary>
@@ -866,6 +875,7 @@ namespace MeshGeodesics
         }
 
         int computeCount = 0;
+
         /// <summary>
         /// Optimization Function
         /// </summary>
