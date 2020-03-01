@@ -45,6 +45,8 @@ namespace MeshGeodesics
             pManager.AddNumberParameter("Nu", "nu", "Equal width weight", GH_ParamAccess.item);
             pManager.AddIntegerParameter("Max Iter", "Iter", "Maximum Iterations for the Vector Field Optimization.\nCareful with this setting!! It might take a while to finish...", GH_ParamAccess.item, 500);
             pManager.AddIntegerParameter("Optimizer", "Opti", "Select desired optimizer: 0=BOBYQA 1=NelderMead 2=SimulatedAnnealing 3=Firefly",GH_ParamAccess.item,0);
+            pManager.AddNumberParameter("Optimization Objective", "Obj", "Numerical objective to stop the optimization process", GH_ParamAccess.item, 10);
+
         }
 
         /// <summary>
@@ -75,7 +77,7 @@ namespace MeshGeodesics
             double nu = 0.0;
             int maxCalls = 0;
             int optim = 0;
-
+            double objective = 10;
             if (!DA.GetData(0, ref mesh)) return;
             if (!DA.GetDataList(1, initialValues)) return;
             if (!DA.GetData(2, ref desiredWidth)) return;
@@ -83,7 +85,7 @@ namespace MeshGeodesics
             if (!DA.GetData(4, ref nu)) return;
             if (!DA.GetData(5, ref maxCalls)) return;
             if (!DA.GetData(6, ref optim)) return;
-
+            if (!DA.GetData(7, ref objective)) return;
 
             mesh.FaceNormals.ComputeFaceNormals();
 
@@ -100,15 +102,14 @@ namespace MeshGeodesics
             //if (optim == 1) opt = new clsOptNelderMead(func);
             //if (optim == 2) opt = new clsOptSimulatedAnnealing(func);
             //if (optim == 3) opt = new clsFireFly(func);
-
+            opt.IsUseCriterion = false;
             opt.InitialPosition = initialValues.ToArray();
             opt.Iteration = maxCalls;
             double finalError = 0;
             bool retry = false;
-
             do
             {
-                double[] resultX = {};
+                double[] resultX = { };
                 if (optim == 0)
                 {
                     var result = optimizer.FindMinimum(x);
@@ -122,39 +123,30 @@ namespace MeshGeodesics
                     while (opt.DoIteration(100) == false)
                     {
                         var eval = opt.Result.Eval;
-                    
+
                         //my criterion
-                        if (eval < 0.01)
+                        if (eval < 10)
                         {
                             break;
                         }
-
-                        Console.WriteLine("Eval:{0}", opt.Result.Eval);
+                        Console.WriteLine("Iter: {0} Eval: {1}", opt.IterationCount, opt.Result.Eval);
                     }
-                    clsUtil.DebugValue(opt);
                     finalError = opt.Result.Eval;
+                    clsUtil.DebugValue(opt);
                 }
 
-
-                String str = "Optimization ended with an error of" + finalError + "\nDo you wish to run again using this results as input?";
-                if (MessageBox.Show(str,"Optimization Ended",MessageBoxButtons.YesNo, MessageBoxIcon.Stop,MessageBoxDefaultButton.Button1) == DialogResult.Yes)
-                {
-                    
-                    retry = true;
-                    if (optim == 0)
-                    {
-                        x = resultX;
-                    }
-                    if (optim > 0)
-                    {
-                        func.levelSets.VertexValues = opt.Result;
-                        opt.InitialPosition = opt.Result.ToArray();
-                    }
-                }
-                else
-                {
-                    retry = false;
-                }
+                //if (optim == 0) {
+                //    String str = "Optimization ended with an error of" + finalError + "\nDo you wish to run again using this results as input?";
+                //    if (MessageBox.Show(str, "Optimization Ended", MessageBoxButtons.YesNo, MessageBoxIcon.Stop, MessageBoxDefaultButton.Button1) == DialogResult.Yes)
+                //    {
+                //        x = resultX;
+                //        retry = true;
+                //    }
+                //    else
+                //    {
+                //        retry = false;
+                //    }
+                //}
             } while (retry == true);
 
             //levelSets = func.levelSets;
@@ -184,7 +176,7 @@ namespace MeshGeodesics
             DA.SetDataList(1, levelSets.Gradient);
             DA.SetDataList(2, divergence);
             DA.SetDataList(3, levelSets.VertexVoronoiArea);
-            //DA.SetData(4, result.F);
+            DA.SetData(4, finalError);
             DA.SetDataList(5, levelSets.VertexValues);
             DA.SetDataList(6, divergenceNorm);
 
